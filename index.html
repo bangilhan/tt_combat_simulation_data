@@ -2775,7 +2775,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                     isPanning = false;
                 });
                 
-                // Shift 키 상태 추적
+                // Shift 키 상태 추적 (패닝용)
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Shift' && isMouseDown) {
                         isPanning = true;
@@ -2789,13 +2789,60 @@ Three.js · PapaParse · 순수 JavaScript`;
                 });
 
                 canvas.addEventListener('wheel', (e) => {
-                    const speed = e.shiftKey ? 2 : 1; // Shift로 더 빠르게
-                    this.cameraDistance += e.deltaY * 5 * speed;
+                    let zoomSpeed = 5; // 기본 줌 속도
+                    
+                    // Ctrl 키: 매우 세밀한 줌 (0.5배)
+                    if (e.ctrlKey) {
+                        zoomSpeed = 0.5;
+                    }
+                    // Alt 키: 세밀한 줌 (1배)
+                    else if (e.altKey) {
+                        zoomSpeed = 1;
+                    }
+                    // Shift 키: 빠른 줌 (2배)
+                    else if (e.shiftKey) {
+                        zoomSpeed = 10;
+                    }
+                    
+                    this.cameraDistance += e.deltaY * zoomSpeed;
                     // 확대/축소 한계 완화
                     const minDist = this.baseCameraDistance * 0.05; // 더 가까이 확대
                     const maxDist = this.baseCameraDistance * 10.0;  // 더 멀리 축소
                     this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
                     e.preventDefault();
+                });
+                
+                // 키보드로 세밀한 줌 컨트롤 추가 (+, - 키)
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl + +/- : 매우 세밀한 줌
+                    if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
+                        this.cameraDistance -= 1;
+                        e.preventDefault();
+                    } else if (e.ctrlKey && e.key === '-') {
+                        this.cameraDistance += 1;
+                        e.preventDefault();
+                    }
+                    // Alt + +/- : 세밀한 줌
+                    else if (e.altKey && (e.key === '+' || e.key === '=')) {
+                        this.cameraDistance -= 5;
+                        e.preventDefault();
+                    } else if (e.altKey && e.key === '-') {
+                        this.cameraDistance += 5;
+                        e.preventDefault();
+                    }
+                    // +/- : 일반 줌
+                    else if (e.key === '+' || e.key === '=') {
+                        this.cameraDistance -= 10;
+                        e.preventDefault();
+                    } else if (e.key === '-') {
+                        this.cameraDistance += 10;
+                        e.preventDefault();
+                    }
+                    
+                    // 한계 적용
+                    const minDist = this.baseCameraDistance * 0.05;
+                    const maxDist = this.baseCameraDistance * 10.0;
+                    this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
                 });
                 
                 this.updateCamera = () => {

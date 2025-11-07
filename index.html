@@ -3315,6 +3315,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                     // 플레이어 ID 라벨 (크게)
                     // 현재 틱에 킬 이벤트가 있고 이 플레이어가 공격자인지 확인
                     let isAttacker = false;
+                    let attackerWeapon = null;
                     if (this.data && this.data.events) {
                         const currentTime = tickData.game_time;
                         const activeEvent = this.data.events.find(e => 
@@ -3322,13 +3323,18 @@ Three.js · PapaParse · 순수 JavaScript`;
                             e.attacker && 
                             e.attacker.name === player.name
                         );
-                        isAttacker = !!activeEvent;
+                        if (activeEvent) {
+                            isAttacker = true;
+                            attackerWeapon = activeEvent.weapon || null;
+                        }
                     }
                     
+                    // 라벨 높이 조정 (무기 정보 포함 시 더 높게)
+                    const labelHeight = (isAttacker && attackerWeapon) ? 120 : 96;
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     canvas.width = 512;
-                    canvas.height = 96;
+                    canvas.height = labelHeight;
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     
@@ -3337,12 +3343,29 @@ Three.js · PapaParse · 순수 JavaScript`;
                     ctx.lineWidth = 3;
                     ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
                     
+                    let yPos = 36;
+                    
+                    // 플레이어 이름
                     ctx.fillStyle = '#ffffff';
                     ctx.font = 'bold 36px Arial';
                     ctx.textAlign = 'center';
-                    // 공격자인 경우 이름 옆에 (attacker) 추가
-                    const displayText = isAttacker ? `${player.name} (attacker)` : player.name;
-                    ctx.fillText(displayText, canvas.width / 2, canvas.height / 2 + 12);
+                    ctx.fillText(player.name, canvas.width / 2, yPos);
+                    
+                    // 공격자인 경우 (attacker) 및 무기 정보 추가
+                    if (isAttacker) {
+                        yPos += 28;
+                        ctx.fillStyle = '#ff6b6b';
+                        ctx.font = '16px Arial';
+                        ctx.fillText('(attacker)', canvas.width / 2, yPos);
+                        
+                        // 무기 정보 표시
+                        if (attackerWeapon) {
+                            yPos += 22;
+                            ctx.fillStyle = '#ffa500';
+                            ctx.font = '14px Arial';
+                            ctx.fillText(attackerWeapon, canvas.width / 2, yPos);
+                        }
+                    }
                     
                     const texture = new THREE.CanvasTexture(canvas);
                     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ 
@@ -3351,7 +3374,9 @@ Three.js · PapaParse · 순수 JavaScript`;
                         depthTest: false
                     }));
                     sprite.position.set(player.position[0], player.position[2] + 35, player.position[1]);
-                    sprite.scale.set(150, 30, 1);
+                    // 라벨 높이에 맞춰 스케일 조정
+                    const spriteHeight = (isAttacker && attackerWeapon) ? 60 : 30;
+                    sprite.scale.set(150, spriteHeight, 1);
                     this.scene.add(sprite);
                     this.playerLabels.set(player.name, sprite);
                     

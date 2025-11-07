@@ -648,13 +648,13 @@
                 <div id="brand-tagline">"Follow every trace." 🍞</div>
             </div>
         </div>
-        <div class="nav-item">Dashboard</div>
+        <div class="nav-item active">Dashboard</div>
         <div class="nav-item">Manage</div>
-        <div class="nav-item active">Investigate</div>
+        <div class="nav-item">Investigate</div>
         <div class="nav-item" id="report-tab">Generate Report</div>
     </div>
 
-    <div id="container" style="display: flex;">
+    <div id="container" style="display: none;">
         <div id="sidebar">
             <div class="sidebar-section">
                 <h3>File Load</h3>
@@ -859,6 +859,8 @@
                 this.setupTabs();
                 this.setupResizableBottom();
                 this.setupNavigation();
+                // 초기 로드 시 Dashboard 표시
+                this.showDashboard();
                 this.animate();
             }
 

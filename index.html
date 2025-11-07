@@ -3330,7 +3330,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                     }
                     
                     // 라벨 높이 조정 (무기 정보 포함 시 더 높게)
-                    const labelHeight = (isAttacker && attackerWeapon) ? 110 : 96;
+                    const labelHeight = (isAttacker && attackerWeapon) ? 130 : 96;
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     canvas.width = 512;
@@ -3343,7 +3343,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                     ctx.lineWidth = 3;
                     ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
                     
-                    let yPos = 38;
+                    let yPos = 40;
                     
                     // 플레이어 이름
                     ctx.fillStyle = '#ffffff';
@@ -3353,16 +3353,16 @@ Three.js · PapaParse · 순수 JavaScript`;
                     
                     // 공격자인 경우 (attacker) 및 무기 정보 추가
                     if (isAttacker) {
-                        yPos += 32;
+                        yPos += 38;
                         ctx.fillStyle = '#ff6b6b';
-                        ctx.font = '14px Arial';
+                        ctx.font = 'bold 15px Arial';
                         ctx.fillText('(attacker)', canvas.width / 2, yPos);
                         
                         // 무기 정보 표시
                         if (attackerWeapon) {
-                            yPos += 20;
+                            yPos += 24;
                             ctx.fillStyle = '#ffa500';
-                            ctx.font = '13px Arial';
+                            ctx.font = 'bold 15px Arial';
                             ctx.fillText(attackerWeapon, canvas.width / 2, yPos);
                         }
                     }
@@ -3373,10 +3373,13 @@ Three.js · PapaParse · 순수 JavaScript`;
                         transparent: true,
                         depthTest: false
                     }));
-                    sprite.position.set(player.position[0], player.position[2] + 35, player.position[1]);
-                    // 라벨 높이에 맞춰 스케일 조정 (비율 개선)
-                    const spriteHeight = (isAttacker && attackerWeapon) ? 55 : 30;
-                    sprite.scale.set(150, spriteHeight, 1);
+                    // 공격자인 경우 라벨을 더 위로 올려서 다른 플레이어와 겹치지 않도록
+                    const labelYOffset = isAttacker ? 50 : 35;
+                    sprite.position.set(player.position[0], player.position[2] + labelYOffset, player.position[1]);
+                    // 라벨 높이에 맞춰 스케일 조정 (비율 개선, 공격자는 더 크게)
+                    const spriteHeight = (isAttacker && attackerWeapon) ? 65 : 30;
+                    const spriteWidth = isAttacker ? 160 : 150;
+                    sprite.scale.set(spriteWidth, spriteHeight, 1);
                     this.scene.add(sprite);
                     this.playerLabels.set(player.name, sprite);
                     

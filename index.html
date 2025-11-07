@@ -2716,6 +2716,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                     
                     // 새 창으로 열기
                     const win = window.open('', '_blank');
+                    this.currentReportWindow = win; // 현재 보고서 창 저장
                     win.document.write(reportHTML);
                     win.document.close();
                     

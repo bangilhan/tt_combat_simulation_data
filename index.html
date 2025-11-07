@@ -3330,7 +3330,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                     }
                     
                     // 라벨 높이 조정 (무기 정보 포함 시 더 높게)
-                    const labelHeight = (isAttacker && attackerWeapon) ? 120 : 96;
+                    const labelHeight = (isAttacker && attackerWeapon) ? 110 : 96;
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     canvas.width = 512;
@@ -3343,7 +3343,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                     ctx.lineWidth = 3;
                     ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
                     
-                    let yPos = 36;
+                    let yPos = 38;
                     
                     // 플레이어 이름
                     ctx.fillStyle = '#ffffff';
@@ -3353,16 +3353,16 @@ Three.js · PapaParse · 순수 JavaScript`;
                     
                     // 공격자인 경우 (attacker) 및 무기 정보 추가
                     if (isAttacker) {
-                        yPos += 28;
+                        yPos += 32;
                         ctx.fillStyle = '#ff6b6b';
-                        ctx.font = '16px Arial';
+                        ctx.font = '14px Arial';
                         ctx.fillText('(attacker)', canvas.width / 2, yPos);
                         
                         // 무기 정보 표시
                         if (attackerWeapon) {
-                            yPos += 22;
+                            yPos += 20;
                             ctx.fillStyle = '#ffa500';
-                            ctx.font = '14px Arial';
+                            ctx.font = '13px Arial';
                             ctx.fillText(attackerWeapon, canvas.width / 2, yPos);
                         }
                     }
@@ -3374,8 +3374,8 @@ Three.js · PapaParse · 순수 JavaScript`;
                         depthTest: false
                     }));
                     sprite.position.set(player.position[0], player.position[2] + 35, player.position[1]);
-                    // 라벨 높이에 맞춰 스케일 조정
-                    const spriteHeight = (isAttacker && attackerWeapon) ? 60 : 30;
+                    // 라벨 높이에 맞춰 스케일 조정 (비율 개선)
+                    const spriteHeight = (isAttacker && attackerWeapon) ? 55 : 30;
                     sprite.scale.set(150, spriteHeight, 1);
                     this.scene.add(sprite);
                     this.playerLabels.set(player.name, sprite);
@@ -3520,16 +3520,8 @@ Three.js · PapaParse · 순수 JavaScript`;
                                         ctx.fillText('HEADSHOT', canvas.width / 2, yPos);
                                     }
                                     
-                                    // 무기 정보 표시 (attacker가 사용한 무기 = victim을 죽인 무기)
-                                    if (event.weapon) {
-                                        yPos += 20;
-                                        ctx.fillStyle = `rgba(255, 165, 0, ${opacity})`;
-                                        ctx.font = '14px Arial';
-                                        ctx.fillText(`by ${event.weapon}`, canvas.width / 2, yPos);
-                                    }
-                                    
                                     // victim 텍스트
-                                    yPos += 18;
+                                    yPos += 20;
                                     ctx.fillStyle = `rgba(255, 107, 107, ${opacity})`;
                                     ctx.font = '12px Arial';
                                     ctx.fillText('victim', canvas.width / 2, yPos);
@@ -3546,7 +3538,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                                         event.victim.position[2] + 70, // 더 위로 올림
                                         event.victim.position[1]
                                     );
-                                    sprite.scale.set(150, 50, 1); // 크기 조정 (무기 정보 추가로 높이 증가)
+                                    sprite.scale.set(140, 40, 1); // 크기 조정 (무기 정보 제거로 원래 크기로 복원)
                                     this.scene.add(sprite);
                                     this.eventMarkers.push(sprite);
                                 }

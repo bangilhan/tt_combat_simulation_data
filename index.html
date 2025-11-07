@@ -2801,7 +2801,22 @@ Three.js · PapaParse · 순수 JavaScript`;
                 this.updateCamera = () => {
                     // 타겟이 설정되어 있으면 타겟 중심, 없으면 맵 중심
                     if (this.cameraTarget) {
-                        this.updateCameraToTarget();
+                        // 포커스 모드에서도 패닝 오프셋 적용
+                        const target = this.cameraTarget;
+                        const baseX = target.x + this.cameraDistance * Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX);
+                        const baseY = target.y + this.cameraDistance * Math.sin(this.cameraRotationX);
+                        const baseZ = target.z + this.cameraDistance * Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX);
+                        // 패닝 오프셋 적용
+                        this.camera.position.set(
+                            baseX + this.panOffset.x,
+                            baseY + this.panOffset.y,
+                            baseZ + this.panOffset.z
+                        );
+                        this.camera.lookAt(
+                            target.x + this.panOffset.x,
+                            target.y + this.panOffset.y,
+                            target.z + this.panOffset.z
+                        );
                     } else if (this.mapBounds) {
                         const bounds = this.mapBounds;
                         const baseX = bounds.centerX + this.cameraDistance * Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX);
@@ -3201,8 +3216,17 @@ Three.js · PapaParse · 순수 JavaScript`;
                 const y = target.y + this.cameraDistance * Math.sin(this.cameraRotationX);
                 const z = target.z + this.cameraDistance * Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX);
                 
-                this.camera.position.set(x, y, z);
-                this.camera.lookAt(target.x, target.y, target.z);
+                // 패닝 오프셋 적용
+                this.camera.position.set(
+                    x + (this.panOffset ? this.panOffset.x : 0),
+                    y + (this.panOffset ? this.panOffset.y : 0),
+                    z + (this.panOffset ? this.panOffset.z : 0)
+                );
+                this.camera.lookAt(
+                    target.x + (this.panOffset ? this.panOffset.x : 0),
+                    target.y + (this.panOffset ? this.panOffset.y : 0),
+                    target.z + (this.panOffset ? this.panOffset.z : 0)
+                );
             }
 
             findTickByTime(targetTime) {
@@ -3375,6 +3399,18 @@ Three.js · PapaParse · 순수 JavaScript`;
                 this.data.events.forEach(event => {
                     const timeDiff = Math.abs(event.game_time - gameTime);
                     // 정확히 해당 틱에만 표시 (0.05초 이내, 약 3틱)
+                    // 포커스 모드일 때는 선택된 이벤트만 표시
+                    if (this.focusMode && this.selectedEvent) {
+                        // 포커스 모드: 선택된 이벤트와 일치하는 경우만 표시
+                        if (event.tick !== this.selectedEvent.tick || 
+                            !event.attacker || !this.selectedEvent.attacker ||
+                            event.attacker.name !== this.selectedEvent.attacker.name ||
+                            !event.victim || !this.selectedEvent.victim ||
+                            event.victim.name !== this.selectedEvent.victim.name) {
+                            return; // 선택된 이벤트가 아니면 스킵
+                        }
+                    }
+                    
                     if (timeDiff < 0.05 && event.attacker.position[0] !== null) {
                         const geometry = new THREE.ConeGeometry(15, 50, 8);
                         const material = new THREE.MeshPhongMaterial({ 
@@ -3442,26 +3478,47 @@ Three.js · PapaParse · 순수 JavaScript`;
                                     ctx.lineWidth = 3;
                                     ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
                                     
-                                    let yPos = 30;
+                                    // 캔버스 크기 조정 (무기 정보 추가)
+                                    canvas.width = 300;
+                                    canvas.height = 100;
+                                    
+                                    // 배경 다시 그리기
+                                    ctx.fillStyle = `rgba(0, 0, 0, ${0.85 * opacity})`;
+                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                    
+                                    // 테두리 다시 그리기
+                                    ctx.strokeStyle = `rgba(255, 107, 107, ${opacity})`;
+                                    ctx.lineWidth = 3;
+                                    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+                                    
+                                    let yPos = 28;
                                     
                                     // KILLED 텍스트
                                     ctx.fillStyle = `rgba(255, 107, 107, ${opacity})`;
-                                    ctx.font = 'bold 28px Arial';
+                                    ctx.font = 'bold 26px Arial';
                                     ctx.textAlign = 'center';
                                     ctx.fillText('KILLED', canvas.width / 2, yPos);
                                     
                                     // HEADSHOT 표시 (헤드샷인 경우)
                                     if (event.headshot) {
-                                        yPos += 25;
+                                        yPos += 22;
                                         ctx.fillStyle = `rgba(255, 215, 0, ${opacity})`;
-                                        ctx.font = 'bold 18px Arial';
+                                        ctx.font = 'bold 16px Arial';
                                         ctx.fillText('HEADSHOT', canvas.width / 2, yPos);
                                     }
                                     
+                                    // 무기 정보 표시
+                                    if (event.weapon) {
+                                        yPos += 20;
+                                        ctx.fillStyle = `rgba(255, 165, 0, ${opacity})`;
+                                        ctx.font = '14px Arial';
+                                        ctx.fillText(event.weapon, canvas.width / 2, yPos);
+                                    }
+                                    
                                     // victim 텍스트
-                                    yPos += 20;
+                                    yPos += 18;
                                     ctx.fillStyle = `rgba(255, 107, 107, ${opacity})`;
-                                    ctx.font = '14px Arial';
+                                    ctx.font = '12px Arial';
                                     ctx.fillText('victim', canvas.width / 2, yPos);
                                     
                                     const tex = new THREE.CanvasTexture(canvas);
@@ -3476,7 +3533,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                                         event.victim.position[2] + 70, // 더 위로 올림
                                         event.victim.position[1]
                                     );
-                                    sprite.scale.set(140, 40, 1);
+                                    sprite.scale.set(150, 50, 1); // 크기 조정 (무기 정보 추가로 높이 증가)
                                     this.scene.add(sprite);
                                     this.eventMarkers.push(sprite);
                                 }

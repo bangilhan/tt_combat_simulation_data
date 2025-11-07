@@ -147,6 +147,11 @@
             margin-bottom: 10px;
         }
 
+        #dashboard-content strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
         #dashboard-content ul, #dashboard-content ol {
             margin-left: 20px;
             margin-bottom: 15px;
@@ -1287,6 +1292,9 @@ explorer simulation_enhanced.html
                     const id = createId(text);
                     return `<h1 id="${id}">${text}</h1>`;
                 });
+                
+                // 볼드체 변환 (**텍스트**)
+                html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
                 
                 // 코드 블록
                 html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');

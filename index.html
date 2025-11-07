@@ -956,10 +956,19 @@
                 const content = document.getElementById('dashboard-content');
                 if (!content) return;
 
-                // README 내용을 HTML로 변환
-                const readmeContent = `# CS:GO Combat Simulation Platform
+                // 브랜드 헤더 추가
+                const brandHeader = `
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #2a2f3e;">
+                        <img src="crumb_logo.png" alt="CRUMB Logo" onerror="this.style.display='none'" style="height: 64px; width: auto; object-fit: contain;">
+                        <div>
+                            <h1 style="margin: 0; font-size: 28px; color: #fff; font-weight: 600; letter-spacing: 0.5px;">CRUMB — Combat Replay Unified Monitoring & Behavior-analysis</h1>
+                            <p style="margin: 8px 0 0 0; font-size: 14px; color: #8a8fa5; font-style: italic;">"Follow every trace." 🍞</p>
+                        </div>
+                    </div>
+                `;
 
-CS:GO 데모 리플레이 데이터를 3D로 시뮬레이션하고 분석하는 종합 웹 플랫폼입니다. Getgud.io 스타일의 인터페이스로 전투 상황을 시각화하고, 플레이어 행동 패턴을 분석합니다.
+                // README 내용을 HTML로 변환
+                const readmeContent = `CS:GO 데모 리플레이 데이터를 3D로 시뮬레이션하고 분석하는 종합 웹 플랫폼입니다. Getgud.io 스타일의 인터페이스로 전투 상황을 시각화하고, 플레이어 행동 패턴을 분석합니다.
 
 ## 📋 목차
 
@@ -1247,7 +1256,7 @@ explorer simulation_enhanced.html
 이 프로젝트는 교육 및 연구 목적으로 제작되었습니다.`;
 
                 // 간단한 마크다운 파서 (기본적인 변환)
-                content.innerHTML = this.markdownToHTML(readmeContent);
+                content.innerHTML = brandHeader + this.markdownToHTML(readmeContent);
             }
 
             markdownToHTML(markdown) {

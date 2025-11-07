@@ -739,7 +739,7 @@
                     <div id="map-bounds">Calculating...</div>
                     <div id="map-info-text" style="margin-top: 10px; padding: 10px; background: #1a1f2e; border-radius: 4px; font-size: 11px; color: #8a8fa5;">
                         <div style="margin-bottom: 5px;"><strong id="map-rendering-label">맵 렌더링 정보:</strong></div>
-                        <div id="current-map-text">현재 맵: Anubis (데이터 기반)</div>
+                        <div id="current-map-text">현재 맵: <span id="detected-map-name">-</span></div>
                         <div id="map-geometry-text" style="margin-top: 5px;">맵 지오메트리 데이터는 CS2 게임 파일(.bsp)에서 추출하거나</div>
                         <div id="map-api-text">외부 맵 데이터 API를 사용해야 합니다.</div>
                         <div id="map-note-text" style="margin-top: 5px; color: #4a90e2;">참고: 현재는 플레이어 위치 기반 경계만 표시됩니다.</div>
@@ -898,6 +898,7 @@
                 this.baseCameraDistance = 1500;
                 this.language = 'ko'; // 'ko' or 'en'
                 this.currentReportWindow = null; // 현재 열려있는 보고서 창
+                this.detectedMapName = null; // 추론된 맵 이름
                 this.cameraRotationX = 0.3;
                 this.cameraRotationY = 0;
                 this.cameraDistance = 1500;
@@ -1556,11 +1557,16 @@ Three.js · PapaParse · Pure JavaScript`
                     }
                     
                     const currentMapText = document.getElementById('current-map-text');
-                    if (currentMapText) {
-                        currentMapText.textContent = t.currentMap + ': Anubis (데이터 기반)';
-                        if (this.language === 'en') {
-                            currentMapText.textContent = t.currentMap + ': Anubis (Data-based)';
-                        }
+                    const detectedMapNameElement = document.getElementById('detected-map-name');
+                    if (currentMapText && detectedMapNameElement) {
+                        const mapName = this.data?.metadata?.mapName || this.detectedMapName || 'Unknown';
+                        const source = this.detectedMapName ? (this.language === 'ko' ? '(위치 기반 추론)' : '(Location-based inference)') : 
+                                      (this.language === 'ko' ? '(데이터 기반)' : '(Data-based)');
+                        currentMapText.innerHTML = t.currentMap + ': <span id="detected-map-name">' + mapName + ' ' + source + '</span>';
+                    } else if (currentMapText) {
+                        // fallback
+                        const mapName = this.data?.metadata?.mapName || this.detectedMapName || 'Unknown';
+                        currentMapText.textContent = t.currentMap + ': ' + mapName;
                     }
                     
                     const mapGeometryText = document.getElementById('map-geometry-text');
@@ -1913,6 +1919,7 @@ Three.js · PapaParse · Pure JavaScript`
                     }
                     
                     // 맵 경계 계산 (이미 계산됨)
+                    let detectedMapName = null;
                     if (minX !== Infinity && maxX !== -Infinity) {
                         this.mapBounds = {
                             minX: minX,
@@ -1928,7 +1935,32 @@ Three.js · PapaParse · Pure JavaScript`
                             height: maxY - minY,
                             depth: maxZ - minZ
                         };
+                        
+                        // 플레이어 위치 범위를 기반으로 맵 추론
+                        detectedMapName = this.detectMapFromBounds(this.mapBounds);
                     }
+                    
+                    // CSV 파일명에서 맵 이름 추출 시도
+                    const fileName = document.getElementById('selected-file')?.textContent || '';
+                    let mapNameFromFile = null;
+                    if (fileName && fileName !== '선택된 파일 없음' && fileName !== 'No file selected') {
+                        // 파일명에서 맵 이름 패턴 찾기 (예: anubis, dust2, inferno 등)
+                        const mapPatterns = [
+                            'anubis', 'dust2', 'dust_2', 'inferno', 'mirage', 'overpass', 
+                            'nuke', 'vertigo', 'ancient', 'cache', 'train', 'cobblestone'
+                        ];
+                        const fileNameLower = fileName.toLowerCase();
+                        for (const map of mapPatterns) {
+                            if (fileNameLower.includes(map)) {
+                                mapNameFromFile = map.charAt(0).toUpperCase() + map.slice(1).replace('_', '');
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 최종 맵 이름 결정 (파일명 우선, 없으면 위치 기반 추론)
+                    const finalMapName = mapNameFromFile || detectedMapName || 'Unknown';
+                    this.detectedMapName = finalMapName;
                     
                     const gameTimes = positions.map(p => p.game_time).filter(t => t);
                     const ticks = positions.map(p => p.tick).filter(t => t);
@@ -2014,7 +2046,8 @@ Three.js · PapaParse · Pure JavaScript`
                             },
                             players: Array.from(players).sort(),
                             playerStats: Object.fromEntries(playerStats),
-                            teams: ['CT', 'TERRORIST']
+                            teams: ['CT', 'TERRORIST'],
+                            mapName: this.detectedMapName || 'Unknown'
                         },
                         positions: positions,
                         events: events
@@ -3039,6 +3072,56 @@ Three.js · PapaParse · Pure JavaScript`
                 });
             }
 
+            detectMapFromBounds(bounds) {
+                // CS2 맵의 알려진 위치 범위 (대략적인 값, 실제로는 더 정확한 데이터 필요)
+                // 이 값들은 예시이며, 실제 맵 데이터와 매칭해야 함
+                const mapRanges = {
+                    'Anubis': { 
+                        minX: -2000, maxX: 2000, 
+                        minY: -2000, maxY: 2000, 
+                        minZ: -100, maxZ: 500 
+                    },
+                    'Dust2': { 
+                        minX: -2500, maxX: 2500, 
+                        minY: -2500, maxY: 2500, 
+                        minZ: -200, maxZ: 600 
+                    },
+                    'Inferno': { 
+                        minX: -3000, maxX: 3000, 
+                        minY: -3000, maxY: 3000, 
+                        minZ: -150, maxZ: 500 
+                    },
+                    'Mirage': { 
+                        minX: -2800, maxX: 2800, 
+                        minY: -2800, maxY: 2800, 
+                        minZ: -100, maxZ: 550 
+                    },
+                    'Overpass': { 
+                        minX: -3500, maxX: 3500, 
+                        minY: -3500, maxY: 3500, 
+                        minZ: -200, maxZ: 600 
+                    }
+                };
+                
+                // 맵 범위와 비교하여 가장 유사한 맵 찾기
+                let bestMatch = null;
+                let bestScore = 0;
+                
+                for (const [mapName, mapRange] of Object.entries(mapRanges)) {
+                    const widthMatch = Math.abs(bounds.width - (mapRange.maxX - mapRange.minX)) / (mapRange.maxX - mapRange.minX);
+                    const depthMatch = Math.abs(bounds.depth - (mapRange.maxY - mapRange.minY)) / (mapRange.maxY - mapRange.minY);
+                    const heightMatch = Math.abs(bounds.height - (mapRange.maxZ - mapRange.minZ)) / (mapRange.maxZ - mapRange.minZ);
+                    
+                    const score = 1 - (widthMatch + depthMatch + heightMatch) / 3;
+                    if (score > bestScore && score > 0.3) { // 30% 이상 유사도
+                        bestScore = score;
+                        bestMatch = mapName;
+                    }
+                }
+                
+                return bestMatch;
+            }
+            
             setupMapBounds() {
                 if (!this.mapBounds) return;
                 
@@ -3468,6 +3551,21 @@ Three.js · PapaParse · Pure JavaScript`
                 const m = this.data.metadata;
                 document.getElementById('total-players').textContent = m.players.length;
                 document.getElementById('total-events').textContent = m.total_events;
+                
+                // 맵 이름 업데이트
+                const mapName = m.mapName || this.detectedMapName || 'Unknown';
+                const mapNameElement = document.getElementById('map-name');
+                if (mapNameElement) {
+                    mapNameElement.textContent = mapName;
+                }
+                
+                // 맵 정보 텍스트 업데이트
+                const detectedMapNameElement = document.getElementById('detected-map-name');
+                if (detectedMapNameElement) {
+                    const source = this.detectedMapName ? (this.language === 'ko' ? '(위치 기반 추론)' : '(Location-based inference)') : 
+                                  (this.language === 'ko' ? '(데이터 기반)' : '(Data-based)');
+                    detectedMapNameElement.textContent = `${mapName} ${source}`;
+                }
                 
                 const duration = m.time_range.max - m.time_range.min;
                 const mins = Math.floor(duration / 60);

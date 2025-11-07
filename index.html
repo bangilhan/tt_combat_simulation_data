@@ -102,8 +102,10 @@
             flex: 1;
             padding: 40px;
             overflow-y: auto;
+            overflow-x: hidden;
             background: #0f1419;
             display: none;
+            height: calc(100vh - 50px);
         }
 
         #dashboard-view.active {
@@ -114,6 +116,7 @@
             max-width: 900px;
             margin: 0 auto;
             color: #fff;
+            padding-right: 20px;
         }
 
         #dashboard-content h1 {
@@ -794,7 +797,7 @@
     <!-- GitHub CSV 선택 팝업 -->
     <div id="csv-popup">
         <div id="csv-popup-content">
-            <h3>GitHub에서 CSV 파일 선택</h3>
+            <h3>현재 경로에서 확인되는 리플레이 파일 선택</h3>
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
             <button id="csv-popup-close">닫기</button>
@@ -916,9 +919,15 @@
                 
                 const dashboardView = document.getElementById('dashboard-view');
                 const container = document.getElementById('container');
+                const bottomPanel = document.getElementById('bottom-panel');
+                
                 if (dashboardView && container) {
                     container.style.display = 'none';
                     dashboardView.classList.add('active');
+                    // 하단 패널 숨기기
+                    if (bottomPanel) {
+                        bottomPanel.style.display = 'none';
+                    }
                     this.renderDashboard();
                 }
             }
@@ -931,9 +940,15 @@
                 
                 const dashboardView = document.getElementById('dashboard-view');
                 const container = document.getElementById('container');
+                const bottomPanel = document.getElementById('bottom-panel');
+                
                 if (dashboardView && container) {
                     dashboardView.classList.remove('active');
                     container.style.display = 'flex';
+                    // 하단 패널 다시 표시
+                    if (bottomPanel) {
+                        bottomPanel.style.display = 'flex';
+                    }
                 }
             }
 

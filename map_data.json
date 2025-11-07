@@ -1,0 +1,123 @@
+{
+  "Anubis": {
+    "minX": -2000,
+    "maxX": 2000,
+    "minY": -2000,
+    "maxY": 2000,
+    "minZ": -100,
+    "maxZ": 500,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 200,
+    "description": "de_anubis"
+  },
+  "Dust2": {
+    "minX": -2500,
+    "maxX": 2500,
+    "minY": -2500,
+    "maxY": 2500,
+    "minZ": -200,
+    "maxZ": 600,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 200,
+    "description": "de_dust2"
+  },
+  "Inferno": {
+    "minX": -3000,
+    "maxX": 3000,
+    "minY": -3000,
+    "maxY": 3000,
+    "minZ": -150,
+    "maxZ": 500,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 175,
+    "description": "de_inferno"
+  },
+  "Mirage": {
+    "minX": -2800,
+    "maxX": 2800,
+    "minY": -2800,
+    "maxY": 2800,
+    "minZ": -100,
+    "maxZ": 550,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 225,
+    "description": "de_mirage"
+  },
+  "Overpass": {
+    "minX": -3500,
+    "maxX": 3500,
+    "minY": -3500,
+    "maxY": 3500,
+    "minZ": -200,
+    "maxZ": 600,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 200,
+    "description": "de_overpass"
+  },
+  "Nuke": {
+    "minX": -4000,
+    "maxX": 4000,
+    "minY": -4000,
+    "maxY": 4000,
+    "minZ": -500,
+    "maxZ": 800,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 150,
+    "description": "de_nuke"
+  },
+  "Vertigo": {
+    "minX": -3000,
+    "maxX": 3000,
+    "minY": -3000,
+    "maxY": 3000,
+    "minZ": -100,
+    "maxZ": 1200,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 550,
+    "description": "de_vertigo"
+  },
+  "Ancient": {
+    "minX": -3200,
+    "maxX": 3200,
+    "minY": -3200,
+    "maxY": 3200,
+    "minZ": -150,
+    "maxZ": 600,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 225,
+    "description": "de_ancient"
+  },
+  "Cache": {
+    "minX": -3000,
+    "maxX": 3000,
+    "minY": -3000,
+    "maxY": 3000,
+    "minZ": -200,
+    "maxZ": 600,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 200,
+    "description": "de_cache"
+  },
+  "Train": {
+    "minX": -4000,
+    "maxX": 4000,
+    "minY": -4000,
+    "maxY": 4000,
+    "minZ": -300,
+    "maxZ": 700,
+    "centerX": 0,
+    "centerY": 0,
+    "centerZ": 200,
+    "description": "de_train"
+  }
+}
+

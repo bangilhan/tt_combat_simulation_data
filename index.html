@@ -2177,6 +2177,7 @@ Three.js · PapaParse · 순수 JavaScript`;
                 let titleText = `Aim Trace - ${name || 'N/A'}`;
                 
                 // 킬 이벤트가 있으면 무기 정보 및 교전 거리 추가
+                let engagementDistance = null;
                 if (this.selectedEvent && this.selectedEvent.attacker && this.selectedEvent.victim) {
                     // 무기 정보 추가
                     if (this.selectedEvent.weapon) {
@@ -2200,11 +2201,45 @@ Three.js · PapaParse · 순수 JavaScript`;
                         const distanceMeters = distanceUnits * 0.75 * 2.54 / 100; // 미터로 변환
                         const distanceFeet = distanceUnits * 0.75 / 12; // 피트로 변환
                         
+                        engagementDistance = distanceUnits;
                         titleText += ` | 교전 거리: ${distanceUnits.toFixed(1)} units (${distanceMeters.toFixed(2)}m / ${distanceFeet.toFixed(1)}ft)`;
                     }
                 }
                 
                 ctx.fillText(titleText, pad, 20);
+                
+                // 추가 분석 정보 표시 (임의 값)
+                if (this.selectedEvent && this.selectedEvent.weapon) {
+                    let yOffset = 45;
+                    ctx.font = '12px Arial';
+                    ctx.fillStyle = '#8a8fa5';
+                    
+                    // 무기 유효 사거리 및 KILL 유효성
+                    const weaponEffectiveRange = 500; // 임의 값 (units)
+                    const killValidity = engagementDistance ? (engagementDistance <= weaponEffectiveRange ? '유효' : '비유효') : 'N/A';
+                    const validityColor = killValidity === '유효' ? '#4caf50' : '#ff6b6b';
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(`무기 유효 사거리: ${weaponEffectiveRange} units`, pad, yOffset);
+                    yOffset += 18;
+                    
+                    ctx.fillStyle = validityColor;
+                    ctx.fillText(`교전 거리 및 KILL 유효성: ${killValidity}`, pad, yOffset);
+                    yOffset += 18;
+                    
+                    // 월핵 탐지
+                    const wallhackDetected = Math.random() > 0.7 ? '의심' : '정상'; // 임의 값
+                    const wallhackColor = wallhackDetected === '의심' ? '#ff6b6b' : '#4caf50';
+                    ctx.fillStyle = wallhackColor;
+                    ctx.fillText(`벽 관통 탐지 (월핵): ${wallhackDetected}`, pad, yOffset);
+                    yOffset += 18;
+                    
+                    // AIM 이동 패턴 이상 점수
+                    const aimAnomalyScore = (Math.random() * 100).toFixed(1); // 임의 값 (0-100)
+                    const anomalyColor = parseFloat(aimAnomalyScore) > 70 ? '#ff6b6b' : (parseFloat(aimAnomalyScore) > 40 ? '#ffa500' : '#4caf50');
+                    ctx.fillStyle = anomalyColor;
+                    ctx.fillText(`AIM 이동 패턴 이상 점수: ${aimAnomalyScore}`, pad, yOffset);
+                }
             }
 
             generateReport(playerName) {

@@ -3636,8 +3636,8 @@ Three.js · PapaParse · Pure JavaScript`
                     
                     this.cameraDistance += e.deltaY * zoomSpeed;
                     // 확대/축소 한계 완화
-                    const minDist = this.baseCameraDistance * 0.05; // 더 가까이 확대
-                    const maxDist = this.baseCameraDistance * 10.0;  // 더 멀리 축소
+                    const minDist = Math.max(10, this.baseCameraDistance * 0.01); // 더 가까이 확대 허용
+                    const maxDist = Math.max(minDist + 500, this.baseCameraDistance * 25.0);  // 더 멀리 축소 허용
                     this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
                     e.preventDefault();
                 });
@@ -3670,8 +3670,8 @@ Three.js · PapaParse · Pure JavaScript`
                     }
                     
                     // 한계 적용
-                    const minDist = this.baseCameraDistance * 0.05;
-                    const maxDist = this.baseCameraDistance * 10.0;
+                    const minDist = Math.max(10, this.baseCameraDistance * 0.01);
+                    const maxDist = Math.max(minDist + 500, this.baseCameraDistance * 25.0);
                     this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
                 });
 

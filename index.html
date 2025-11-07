@@ -3493,8 +3493,11 @@ Three.js · PapaParse · 순수 JavaScript`;
                     }
                     
                     if (timeDiff < 0.05 && event.attacker.position[0] !== null) {
-                        // 원 테두리 형태로 공격자 표시
-                        const ringGeometry = new THREE.RingGeometry(10, 15, 32);
+                        // 공격자 플레이어를 원 테두리로 감싸기
+                        // 플레이어 모델 크기(반지름 약 12-15)를 고려하여 원 테두리 생성
+                        const innerRadius = 18;
+                        const outerRadius = 20;
+                        const ringGeometry = new THREE.RingGeometry(innerRadius, outerRadius, 32);
                         const material = new THREE.MeshPhongMaterial({ 
                             color: 0xff0000,
                             emissive: 0xff0000,
@@ -3502,12 +3505,13 @@ Three.js · PapaParse · 순수 JavaScript`;
                             side: THREE.DoubleSide
                         });
                         const marker = new THREE.Mesh(ringGeometry, material);
+                        // 공격자 플레이어 위치에 배치 (지면 높이)
                         marker.position.set(
                             event.attacker.position[0],
-                            event.attacker.position[2] + 20,
+                            event.attacker.position[2], // 플레이어와 같은 높이
                             event.attacker.position[1]
                         );
-                        // 수평면에 배치
+                        // 수평면에 배치 (지면에 놓인 원 형태)
                         marker.rotation.x = -Math.PI / 2;
                         this.scene.add(marker);
                         this.eventMarkers.push(marker);

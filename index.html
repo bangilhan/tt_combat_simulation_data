@@ -2069,6 +2069,9 @@ Three.js · PapaParse · Pure JavaScript`
                     console.log('Positions 수:', positions.length);
                     console.log('Events 수:', events.length);
                     
+                    // 주요 경로 분석 및 렌더링
+                    this.analyzeAndRenderPaths();
+                    
                     if (positions.length === 0) {
                         console.error('Positions가 비어있습니다. 데이터 포맷을 확인하세요.');
                         alert('데이터를 처리할 수 없습니다. CSV 파일 포맷을 확인하세요.');

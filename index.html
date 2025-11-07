@@ -1874,7 +1874,25 @@ explorer simulation_enhanced.html
                     this.setupMapBounds();
                     this.populateKillPicker();
                     this.populatePlayerPicker();
-                    this.renderTick(0);
+                    
+                    // 파일 로드 후 Investigate 탭으로 자동 전환
+                    this.showInvestigate();
+                    
+                    // 시뮬레이션 렌더링 초기화
+                    setTimeout(() => {
+                        this.renderTick(0);
+                        // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
+                        const container = document.getElementById('canvas-container');
+                        if (container && this.renderer) {
+                            const width = container.clientWidth;
+                            const height = container.clientHeight;
+                            if (width > 0 && height > 0) {
+                                this.camera.aspect = width / height;
+                                this.camera.updateProjectionMatrix();
+                                this.renderer.setSize(width, height);
+                            }
+                        }
+                    }, 100);
                 } catch (error) {
                     console.error('processData 오류:', error);
                     alert('데이터 처리 중 오류가 발생했습니다: ' + error.message);

@@ -887,6 +887,7 @@
                 
                 this.playerObjects = new Map();
                 this.playerLabels = new Map();
+                this.playerDirectionArrows = new Map();
                 this.playerTrails = new Map();
                 this.eventMarkers = [];
                 this.mapBounds = null;
@@ -3336,6 +3337,13 @@ Three.js · PapaParse · 순수 JavaScript`;
                 // 기존 오브젝트 제거
                 this.playerObjects.forEach(obj => this.scene.remove(obj));
                 this.playerLabels.forEach(obj => this.scene.remove(obj));
+                // 방향 표시기 제거
+                if (this.playerDirectionArrows) {
+                    this.playerDirectionArrows.forEach(obj => this.scene.remove(obj));
+                    this.playerDirectionArrows.clear();
+                } else {
+                    this.playerDirectionArrows = new Map();
+                }
                 this.playerObjects.clear();
                 this.playerLabels.clear();
 
@@ -3361,8 +3369,52 @@ Three.js · PapaParse · 순수 JavaScript`;
                     
                     const mesh = new THREE.Mesh(geometry, material);
                     mesh.position.set(player.position[0], player.position[2], player.position[1]);
+                    
+                    // yaw 값이 있으면 플레이어가 바라보는 방향으로 회전
+                    if (player.yaw !== null && player.yaw !== undefined && !Number.isNaN(player.yaw)) {
+                        // Source 엔진 yaw: 0 = 북쪽, 90 = 동쪽, 180 = 남쪽, 270 = 서쪽
+                        // Three.js는 Y축 기준 회전 (라디안)
+                        // yaw를 라디안으로 변환하고, Source 엔진 좌표계에 맞게 조정
+                        const yawRad = (player.yaw * Math.PI) / 180;
+                        // Source 엔진: 0도 = 북쪽(Y+), Three.js: 0도 = X+
+                        // 90도 회전 보정 필요
+                        mesh.rotation.y = yawRad - Math.PI / 2;
+                    }
+                    
                     this.scene.add(mesh);
                     this.playerObjects.set(player.name, mesh);
+                    
+                    // 방향 표시 화살표 추가 (yaw 정보가 있을 때만)
+                    if (player.yaw !== null && player.yaw !== undefined && !Number.isNaN(player.yaw)) {
+                        const yawRad = (player.yaw * Math.PI) / 180;
+                        const arrowLength = 25;
+                        const arrowColor = isCT ? 0x5b9bd5 : 0xff6b6b;
+                        
+                        // 화살표 방향 계산 (Source 엔진 좌표계)
+                        // yaw 0 = 북쪽(Y+), 90 = 동쪽(X+)
+                        const dirX = Math.sin(yawRad);
+                        const dirZ = Math.cos(yawRad);
+                        
+                        // ArrowHelper 생성 (원점에서 방향으로)
+                        const arrowHelper = new THREE.ArrowHelper(
+                            new THREE.Vector3(dirX, 0, dirZ), // 방향 벡터
+                            new THREE.Vector3(0, 0, 0), // 원점
+                            arrowLength, // 길이
+                            arrowColor, // 색상
+                            arrowLength * 0.3, // 머리 길이
+                            arrowLength * 0.15 // 머리 너비
+                        );
+                        
+                        // 플레이어 위치에 배치 (약간 위로)
+                        arrowHelper.position.set(
+                            player.position[0],
+                            player.position[2] + 20, // 플레이어 머리 위
+                            player.position[1]
+                        );
+                        
+                        this.scene.add(arrowHelper);
+                        this.playerDirectionArrows.set(player.name, arrowHelper);
+                    }
 
                     // 플레이어 ID 라벨 (크게)
                     // 현재 틱에 킬 이벤트가 있고 이 플레이어가 공격자인지 확인

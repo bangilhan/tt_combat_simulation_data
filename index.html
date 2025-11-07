@@ -737,12 +737,12 @@
                 <div id="map-info">
                     <div id="map-info-title">Map Bounds</div>
                     <div id="map-bounds">Calculating...</div>
-                    <div style="margin-top: 10px; padding: 10px; background: #1a1f2e; border-radius: 4px; font-size: 11px; color: #8a8fa5;">
-                        <div style="margin-bottom: 5px;"><strong>맵 렌더링 정보:</strong></div>
-                        <div>현재 맵: Anubis (데이터 기반)</div>
-                        <div style="margin-top: 5px;">맵 지오메트리 데이터는 CS2 게임 파일(.bsp)에서 추출하거나</div>
-                        <div>외부 맵 데이터 API를 사용해야 합니다.</div>
-                        <div style="margin-top: 5px; color: #4a90e2;">참고: 현재는 플레이어 위치 기반 경계만 표시됩니다.</div>
+                    <div id="map-info-text" style="margin-top: 10px; padding: 10px; background: #1a1f2e; border-radius: 4px; font-size: 11px; color: #8a8fa5;">
+                        <div style="margin-bottom: 5px;"><strong id="map-rendering-label">맵 렌더링 정보:</strong></div>
+                        <div id="current-map-text">현재 맵: Anubis (데이터 기반)</div>
+                        <div id="map-geometry-text" style="margin-top: 5px;">맵 지오메트리 데이터는 CS2 게임 파일(.bsp)에서 추출하거나</div>
+                        <div id="map-api-text">외부 맵 데이터 API를 사용해야 합니다.</div>
+                        <div id="map-note-text" style="margin-top: 5px; color: #4a90e2;">참고: 현재는 플레이어 위치 기반 경계만 표시됩니다.</div>
                     </div>
                 </div>
 
@@ -1069,8 +1069,9 @@
                     </div>
                 `;
 
-                // README 내용을 HTML로 변환 (더 간결한 요약)
-                const readmeContent = `FPS 전투 교전 상황을 3D로 시뮬레이션하고 분석하는 웹 플랫폼입니다.
+                // README 내용을 HTML로 변환 (언어별)
+                const readmeContents = {
+                    ko: `FPS 전투 교전 상황을 3D로 시뮬레이션하고 분석하는 웹 플랫폼입니다.
 
 ---
 
@@ -1106,7 +1107,47 @@
 
 ## 🔧 기술 스택
 
-Three.js · PapaParse · 순수 JavaScript`;
+Three.js · PapaParse · 순수 JavaScript`,
+                    en: `A web platform for 3D simulation and analysis of FPS combat engagement situations.
+
+---
+
+## 🚀 Quick Start
+
+1. Click **3D Simulation Analysis** tab
+2. Click **"Select File"** button in the left sidebar
+3. Select GitHub CSV file
+4. 3D simulation starts automatically
+
+---
+
+## 🎯 Key Features
+
+- **3D Visualization**: Player positions, kill events, movement paths
+- **Interactive Controls**: Camera rotation/zoom, play/pause, speed adjustment
+- **Player Tracking**: Follow mode, K/D Ratio, viewpoint movement
+- **Aim Trace**: Aim trajectory visualization, aimbot detection
+
+---
+
+## 🎮 Controls
+
+| Input | Action |
+|------|------|
+| Mouse Drag | Camera Rotation |
+| Mouse Wheel | Zoom In/Out |
+| Play Button | Start/Pause |
+| Timeline Click | Seek Position |
+| Speed Button | 0.5x ~ 3x |
+
+---
+
+## 🔧 Tech Stack
+
+Three.js · PapaParse · Pure JavaScript`
+                };
+                
+                const readmeContent = readmeContents[this.language] || readmeContents.ko;
 
                 // 간단한 마크다운 파서 (기본적인 변환)
                 content.innerHTML = brandHeader + this.markdownToHTML(readmeContent);
@@ -1372,6 +1413,8 @@ Three.js · PapaParse · 순수 JavaScript`;
                             mapRendering: '맵 렌더링 정보',
                             currentMap: '현재 맵',
                             note: '참고',
+                            mapGeometry: '맵 지오메트리',
+                            mapApi: '외부 맵 데이터',
                             kdRatio: 'K/D 비율',
                             kdDesc: 'K/D: 킬 / 데스 - 클릭하여 필터링',
                             killEvents: '킬 이벤트가 여기에 표시됩니다',
@@ -1414,6 +1457,8 @@ Three.js · PapaParse · 순수 JavaScript`;
                             mapRendering: 'Map Rendering Info',
                             currentMap: 'Current Map',
                             note: 'Note',
+                            mapGeometry: 'Map Geometry',
+                            mapApi: 'External Map Data',
                             kdRatio: 'K/D Ratio',
                             kdDesc: 'K/D: Kills / Deaths - Click to filter',
                             killEvents: 'Kill events will appear here',
@@ -1499,9 +1544,61 @@ Three.js · PapaParse · 순수 JavaScript`;
                     });
                     
                     // K/D 설명
-                    const kdDesc = document.querySelector('.stat-group-title').nextElementSibling;
-                    if (kdDesc && kdDesc.style && kdDesc.textContent.includes('K/D')) {
+                    const kdDesc = document.querySelector('.stat-group-title')?.nextElementSibling;
+                    if (kdDesc && kdDesc.style && (kdDesc.textContent.includes('K/D') || kdDesc.textContent.includes('킬'))) {
                         kdDesc.textContent = t.kdDesc;
+                    }
+                    
+                    // 맵 정보 텍스트 업데이트
+                    const mapRenderingLabel = document.getElementById('map-rendering-label');
+                    if (mapRenderingLabel) {
+                        mapRenderingLabel.textContent = t.mapRendering + ':';
+                    }
+                    
+                    const currentMapText = document.getElementById('current-map-text');
+                    if (currentMapText) {
+                        currentMapText.textContent = t.currentMap + ': Anubis (데이터 기반)';
+                        if (this.language === 'en') {
+                            currentMapText.textContent = t.currentMap + ': Anubis (Data-based)';
+                        }
+                    }
+                    
+                    const mapGeometryText = document.getElementById('map-geometry-text');
+                    if (mapGeometryText) {
+                        if (this.language === 'ko') {
+                            mapGeometryText.textContent = '맵 지오메트리 데이터는 CS2 게임 파일(.bsp)에서 추출하거나';
+                        } else {
+                            mapGeometryText.textContent = 'Map geometry data must be extracted from CS2 game files (.bsp) or';
+                        }
+                    }
+                    
+                    const mapApiText = document.getElementById('map-api-text');
+                    if (mapApiText) {
+                        if (this.language === 'ko') {
+                            mapApiText.textContent = '외부 맵 데이터 API를 사용해야 합니다.';
+                        } else {
+                            mapApiText.textContent = 'use an external map data API.';
+                        }
+                    }
+                    
+                    const mapNoteText = document.getElementById('map-note-text');
+                    if (mapNoteText) {
+                        if (this.language === 'ko') {
+                            mapNoteText.textContent = '참고: 현재는 플레이어 위치 기반 경계만 표시됩니다.';
+                        } else {
+                            mapNoteText.textContent = 'Note: Currently only player position-based boundaries are displayed.';
+                        }
+                    }
+                    
+                    // Map Bounds 텍스트 업데이트
+                    const mapBoundsTitle = document.getElementById('map-info-title');
+                    if (mapBoundsTitle) {
+                        mapBoundsTitle.textContent = t.mapBounds;
+                    }
+                    
+                    const mapBoundsText = document.getElementById('map-bounds');
+                    if (mapBoundsText && mapBoundsText.textContent.includes('계산 중')) {
+                        mapBoundsText.textContent = t.calculating;
                     }
                     
                     // 이벤트 피커 업데이트
@@ -1549,6 +1646,11 @@ Three.js · PapaParse · 순수 JavaScript`;
                             btn.textContent = t.aimTrace;
                         }
                     });
+                    
+                    // Dashboard/Info 탭 내용 업데이트
+                    if (document.getElementById('dashboard-view') && !document.getElementById('dashboard-view').classList.contains('hidden')) {
+                        this.renderDashboard();
+                    }
                     
                     // 보고서가 열려있으면 언어 변경 후 재생성
                     if (this.currentReportWindow && !this.currentReportWindow.closed) {

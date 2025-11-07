@@ -1,0 +1,22 @@
+# 오래된 HTML 파일들 - index.html만 사용
+simulation.html
+simulation_enhanced.html
+
+# Python 파일들 (Vercel에서 필요 없음)
+*.py
+__pycache__/
+*.pyc
+
+# Flask 템플릿 (Vercel에서 필요 없음)
+templates/
+
+# 기타 불필요한 파일들
+requirements.txt
+*.csv
+analyze_data.py
+app.py
+app_direct.py
+data_processor.py
+fast_processor.py
+simple_processor.py
+

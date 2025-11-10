@@ -105,24 +105,6 @@
             visibility: visible;
         }
 
-        #compass-container {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 150px;
-            height: 150px;
-            background: rgba(26, 31, 46, 0.9);
-            border: 2px solid #4a90e2;
-            border-radius: 8px;
-            z-index: 1000;
-            pointer-events: none;
-        }
-
-        #compass-canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
 
         #dashboard-view {
             flex: 1;
@@ -687,11 +669,6 @@
     </div>
 
     <div id="container" style="display: none;">
-        <!-- 3D 나침반 -->
-        <div id="compass-container">
-            <canvas id="compass-canvas"></canvas>
-        </div>
-        
         <div id="sidebar">
             <div class="sidebar-section">
                 <h3>File Load</h3>
@@ -941,18 +918,12 @@
                 this.mapImagePlane = null; // 2D 맵 이미지 평면
                 this.mapImageTexture = null; // 맵 이미지 텍스처
                 this.followPlayer = false;
-                this.compassScene = null; // 나침반 씬
-                this.compassCamera = null; // 나침반 카메라
-                this.compassRenderer = null; // 나침반 렌더러
-                this.compassAxes = null; // 나침반 축
-                this.compassSphere = null; // 나침반 구체
                 
                 this.init();
             }
 
             init() {
                 this.setupScene();
-                this.setupCompass(); // 나침반 초기화
                 this.setupControls();
                 this.setupFileInput();
                 this.setupTabs();
@@ -3670,69 +3641,6 @@ Three.js · PapaParse · Pure JavaScript`
                     `Size: ${width.toFixed(0)} × ${height.toFixed(0)} × ${depth.toFixed(0)}`;
             }
 
-            setupCompass() {
-                // 나침반용 작은 씬 생성
-                const compassCanvas = document.getElementById('compass-canvas');
-                if (!compassCanvas) return;
-                
-                this.compassScene = new THREE.Scene();
-                this.compassScene.background = new THREE.Color(0x1a1f2e);
-                
-                // 나침반 카메라 (원근 투영)
-                this.compassCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
-                this.compassCamera.position.set(2, 2, 2);
-                this.compassCamera.lookAt(0, 0, 0);
-                
-                // 나침반 렌더러
-                this.compassRenderer = new THREE.WebGLRenderer({ 
-                    canvas: compassCanvas,
-                    antialias: true,
-                    alpha: true
-                });
-                this.compassRenderer.setSize(150, 150);
-                this.compassRenderer.setClearColor(0x000000, 0);
-                
-                // 지구본 모양 구체 생성
-                const sphereGeometry = new THREE.SphereGeometry(0.8, 32, 32);
-                
-                // 구체 머티리얼 (반투명, 그리드 느낌)
-                const sphereMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x2a3f5a,
-                    transparent: true,
-                    opacity: 0.6,
-                    wireframe: true,
-                    side: THREE.DoubleSide
-                });
-                
-                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-                this.compassScene.add(sphere);
-                
-                // 축 헬퍼 생성 (구체 내부에 작게)
-                this.compassAxes = new THREE.AxesHelper(0.6);
-                this.compassScene.add(this.compassAxes);
-                
-                // 구체를 저장 (회전용)
-                this.compassSphere = sphere;
-                
-                // 초기 렌더링
-                this.compassRenderer.render(this.compassScene, this.compassCamera);
-            }
-            
-            updateCompass() {
-                if (!this.compassScene || !this.compassCamera || !this.compassAxes || !this.camera) return;
-                
-                // 메인 카메라의 방향을 나침반에 반영
-                // 구체와 축을 카메라 방향에 맞춰 회전
-                if (this.compassSphere) {
-                    this.compassSphere.rotation.y = -this.cameraRotationY;
-                    this.compassSphere.rotation.x = this.cameraRotationX;
-                }
-                this.compassAxes.rotation.y = -this.cameraRotationY;
-                this.compassAxes.rotation.x = this.cameraRotationX;
-                
-                this.compassRenderer.render(this.compassScene, this.compassCamera);
-            }
-
             setupScene() {
                 const container = document.getElementById('canvas-container');
                 const width = container.clientWidth;
@@ -4806,9 +4714,6 @@ Three.js · PapaParse · Pure JavaScript`
                 }
 
                 this.renderer.render(this.scene, this.camera);
-                
-                // 나침반 업데이트
-                this.updateCompass();
             }
         }
 

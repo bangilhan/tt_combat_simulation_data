@@ -107,11 +107,11 @@
 
         #compass-container {
             position: absolute;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
-            width: 120px;
-            height: 120px;
-            background: rgba(26, 31, 46, 0.8);
+            width: 150px;
+            height: 150px;
+            background: rgba(26, 31, 46, 0.9);
             border: 2px solid #4a90e2;
             border-radius: 8px;
             z-index: 1000;
@@ -945,6 +945,7 @@
                 this.compassCamera = null; // 나침반 카메라
                 this.compassRenderer = null; // 나침반 렌더러
                 this.compassAxes = null; // 나침반 축
+                this.compassSphere = null; // 나침반 구체
                 
                 this.init();
             }
@@ -3445,18 +3446,19 @@ Three.js · PapaParse · Pure JavaScript`
                         texture.wrapS = THREE.RepeatWrapping;
                         texture.wrapT = THREE.RepeatWrapping;
                         this.mapImageTexture = texture;
+                        console.log('맵 이미지 텍스처 로드 완료:', imagePath);
                         
                         // 맵 경계가 있으면 바로 렌더링
                         if (this.mapBounds) {
                             this.renderMapImage();
-                            console.log('맵 이미지 자동 로드 완료:', imagePath);
+                            console.log('맵 이미지 자동 렌더링 완료');
                         } else {
                             console.log('맵 경계가 아직 계산되지 않음. 맵 경계 계산 후 자동 렌더링됩니다.');
                         }
                     },
                     undefined,
                     (error) => {
-                        console.warn('맵 이미지 로드 실패:', imagePath, error);
+                        console.error('맵 이미지 로드 실패:', imagePath, error);
                     }
                 );
             }
@@ -3552,8 +3554,10 @@ Three.js · PapaParse · Pure JavaScript`
                 line.position.set(bounds.centerX, bounds.centerZ, bounds.centerY);
                 this.scene.add(line);
                 
-                // 2D 맵 이미지 렌더링 (업로드된 경우)
-                this.renderMapImage();
+                // 2D 맵 이미지 렌더링 (이미지가 로드된 경우)
+                if (this.mapImageTexture) {
+                    this.renderMapImage();
+                }
                 
                 // 맵 지오메트리 렌더링 (감지된 맵이 있으면)
                 if (this.detectedMapName) {
@@ -3674,9 +3678,9 @@ Three.js · PapaParse · Pure JavaScript`
                 this.compassScene = new THREE.Scene();
                 this.compassScene.background = new THREE.Color(0x1a1f2e);
                 
-                // 나침반 카메라 (직교 투영)
-                this.compassCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-                this.compassCamera.position.set(0, 0, 2);
+                // 나침반 카메라 (원근 투영)
+                this.compassCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
+                this.compassCamera.position.set(2, 2, 2);
                 this.compassCamera.lookAt(0, 0, 0);
                 
                 // 나침반 렌더러
@@ -3685,12 +3689,30 @@ Three.js · PapaParse · Pure JavaScript`
                     antialias: true,
                     alpha: true
                 });
-                this.compassRenderer.setSize(120, 120);
+                this.compassRenderer.setSize(150, 150);
                 this.compassRenderer.setClearColor(0x000000, 0);
                 
-                // 축 헬퍼 생성 (작은 크기)
-                this.compassAxes = new THREE.AxesHelper(0.8);
+                // 지구본 모양 구체 생성
+                const sphereGeometry = new THREE.SphereGeometry(0.8, 32, 32);
+                
+                // 구체 머티리얼 (반투명, 그리드 느낌)
+                const sphereMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x2a3f5a,
+                    transparent: true,
+                    opacity: 0.6,
+                    wireframe: true,
+                    side: THREE.DoubleSide
+                });
+                
+                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                this.compassScene.add(sphere);
+                
+                // 축 헬퍼 생성 (구체 내부에 작게)
+                this.compassAxes = new THREE.AxesHelper(0.6);
                 this.compassScene.add(this.compassAxes);
+                
+                // 구체를 저장 (회전용)
+                this.compassSphere = sphere;
                 
                 // 초기 렌더링
                 this.compassRenderer.render(this.compassScene, this.compassCamera);
@@ -3700,12 +3722,11 @@ Three.js · PapaParse · Pure JavaScript`
                 if (!this.compassScene || !this.compassCamera || !this.compassAxes || !this.camera) return;
                 
                 // 메인 카메라의 방향을 나침반에 반영
-                // 카메라의 회전을 나침반 축에 적용
-                const cameraDirection = new THREE.Vector3();
-                this.camera.getWorldDirection(cameraDirection);
-                
-                // 나침반 축을 카메라 방향에 맞춰 회전
-                // 위에서 내려다보는 시점을 기준으로 회전
+                // 구체와 축을 카메라 방향에 맞춰 회전
+                if (this.compassSphere) {
+                    this.compassSphere.rotation.y = -this.cameraRotationY;
+                    this.compassSphere.rotation.x = this.cameraRotationX;
+                }
                 this.compassAxes.rotation.y = -this.cameraRotationY;
                 this.compassAxes.rotation.x = this.cameraRotationX;
                 

@@ -105,6 +105,25 @@
             visibility: visible;
         }
 
+        #compass-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 120px;
+            height: 120px;
+            background: rgba(26, 31, 46, 0.8);
+            border: 2px solid #4a90e2;
+            border-radius: 8px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        #compass-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
         #dashboard-view {
             flex: 1;
             padding: 20px 40px 40px 40px;
@@ -668,6 +687,11 @@
     </div>
 
     <div id="container" style="display: none;">
+        <!-- 3D 나침반 -->
+        <div id="compass-container">
+            <canvas id="compass-canvas"></canvas>
+        </div>
+        
         <div id="sidebar">
             <div class="sidebar-section">
                 <h3>File Load</h3>
@@ -917,12 +941,17 @@
                 this.mapImagePlane = null; // 2D 맵 이미지 평면
                 this.mapImageTexture = null; // 맵 이미지 텍스처
                 this.followPlayer = false;
+                this.compassScene = null; // 나침반 씬
+                this.compassCamera = null; // 나침반 카메라
+                this.compassRenderer = null; // 나침반 렌더러
+                this.compassAxes = null; // 나침반 축
                 
                 this.init();
             }
 
             init() {
                 this.setupScene();
+                this.setupCompass(); // 나침반 초기화
                 this.setupControls();
                 this.setupFileInput();
                 this.setupTabs();
@@ -3449,11 +3478,11 @@ Three.js · PapaParse · Pure JavaScript`
                 //   -> gameX -> sceneX, gameZ -> sceneY, gameY -> sceneZ
                 
                 // 맵 이미지는 X-Z 평면에 배치 (위에서 내려다볼 때 보이도록)
-                // X-Z 평면은 기본 PlaneGeometry의 방향
+                // PlaneGeometry는 기본적으로 Y-Z 평면이므로 X-Z 평면으로 회전 필요
                 const mapWidth = bounds.width;   // X 방향 (좌우)
                 const mapDepth = bounds.depth;   // Y 방향 (전후) -> scene Z 방향
                 
-                // 평면 지오메트리 생성 (X-Z 평면, rotation 없음)
+                // 평면 지오메트리 생성 (기본 Y-Z 평면)
                 const planeGeometry = new THREE.PlaneGeometry(mapWidth, mapDepth);
                 
                 // 투명도 (기본값 80%)
@@ -3475,12 +3504,13 @@ Three.js · PapaParse · Pure JavaScript`
                 // Three.js 좌표: centerX, centerZ, centerY
                 this.mapImagePlane.position.set(
                     bounds.centerX,           // X: 좌우 중심
-                    bounds.centerZ - 10,       // Y: 높이 (플레이어보다 약간 아래)
+                    bounds.centerZ - 5,       // Y: 높이 (플레이어보다 약간 아래)
                     bounds.centerY            // Z: 전후 중심
                 );
                 
-                // 회전 없음 (기본 X-Z 평면 사용)
-                // rotation은 기본값 (0, 0, 0) 유지
+                // X-Z 평면으로 회전 (X축으로 -90도 회전)
+                // PlaneGeometry는 기본적으로 Y-Z 평면이므로 X-Z 평면으로 만들려면 X축 회전 필요
+                this.mapImagePlane.rotation.x = -Math.PI / 2;
                 
                 // 씬에 추가 (배경으로 사용되므로 먼저 추가)
                 this.scene.add(this.mapImagePlane);
@@ -3634,6 +3664,52 @@ Three.js · PapaParse · Pure JavaScript`
                     `Y: ${bounds.minY.toFixed(0)} ~ ${bounds.maxY.toFixed(0)}\n` +
                     `Z: ${bounds.minZ.toFixed(0)} ~ ${bounds.maxZ.toFixed(0)}\n` +
                     `Size: ${width.toFixed(0)} × ${height.toFixed(0)} × ${depth.toFixed(0)}`;
+            }
+
+            setupCompass() {
+                // 나침반용 작은 씬 생성
+                const compassCanvas = document.getElementById('compass-canvas');
+                if (!compassCanvas) return;
+                
+                this.compassScene = new THREE.Scene();
+                this.compassScene.background = new THREE.Color(0x1a1f2e);
+                
+                // 나침반 카메라 (직교 투영)
+                this.compassCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+                this.compassCamera.position.set(0, 0, 2);
+                this.compassCamera.lookAt(0, 0, 0);
+                
+                // 나침반 렌더러
+                this.compassRenderer = new THREE.WebGLRenderer({ 
+                    canvas: compassCanvas,
+                    antialias: true,
+                    alpha: true
+                });
+                this.compassRenderer.setSize(120, 120);
+                this.compassRenderer.setClearColor(0x000000, 0);
+                
+                // 축 헬퍼 생성 (작은 크기)
+                this.compassAxes = new THREE.AxesHelper(0.8);
+                this.compassScene.add(this.compassAxes);
+                
+                // 초기 렌더링
+                this.compassRenderer.render(this.compassScene, this.compassCamera);
+            }
+            
+            updateCompass() {
+                if (!this.compassScene || !this.compassCamera || !this.compassAxes || !this.camera) return;
+                
+                // 메인 카메라의 방향을 나침반에 반영
+                // 카메라의 회전을 나침반 축에 적용
+                const cameraDirection = new THREE.Vector3();
+                this.camera.getWorldDirection(cameraDirection);
+                
+                // 나침반 축을 카메라 방향에 맞춰 회전
+                // 위에서 내려다보는 시점을 기준으로 회전
+                this.compassAxes.rotation.y = -this.cameraRotationY;
+                this.compassAxes.rotation.x = this.cameraRotationX;
+                
+                this.compassRenderer.render(this.compassScene, this.compassCamera);
             }
 
             setupScene() {
@@ -4709,6 +4785,9 @@ Three.js · PapaParse · Pure JavaScript`
                 }
 
                 this.renderer.render(this.scene, this.camera);
+                
+                // 나침반 업데이트
+                this.updateCompass();
             }
         }
 

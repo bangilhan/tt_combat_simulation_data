@@ -9,6 +9,7 @@ CS:GO 데모 리플레이 데이터를 3D로 시뮬레이션하고 분석하는 
 3. [주요 기능](#주요-기능)
 4. [목적 및 가치](#목적-및-가치)
 5. [사용 방법](#사용-방법)
+6. [팀원들과 공유하기](#팀원들과-공유하기)
 
 ---
 
@@ -225,9 +226,9 @@ CS:GO 데모 리플레이 데이터를 3D로 시뮬레이션하고 분석하는 
 
 ### 2. 브라우저에서 실행
 ```bash
-# 파일 탐색기에서 simulation_enhanced.html 더블클릭
+# 파일 탐색기에서 index.html 더블클릭
 # 또는
-explorer simulation_enhanced.html
+explorer index.html
 ```
 
 ### 3. 데이터 로드
@@ -245,6 +246,143 @@ explorer simulation_enhanced.html
 2. 자동으로 ±30틱 범위 설정
 3. 재생 버튼으로 해당 구간 반복 재생
 4. Aim Trace에서 공격자의 마우스 이동 패턴 확인
+
+---
+
+## 🌐 팀원들과 공유하기
+
+GitHub에 소스 코드가 올라가 있는 상황에서, CSV 파일과 함께 팀원들과 공유하는 방법입니다.
+
+### 방법 1: GitHub Pages (추천) ⭐
+
+**장점**: 무료, 간단한 설정, CSV 파일도 함께 호스팅 가능
+
+#### 설정 방법:
+
+1. **CSV 파일을 GitHub에 포함**
+   ```bash
+   # CSV 파일이 이미 저장소에 있는지 확인
+   git add sample_dataset_kill_tick_info.csv
+   git commit -m "Add sample CSV dataset"
+   git push
+   ```
+
+2. **GitHub Pages 활성화**
+   - GitHub 저장소 페이지로 이동
+   - `Settings` → `Pages` 메뉴 클릭
+   - `Source`에서 `Deploy from a branch` 선택
+   - `Branch`를 `main` (또는 `master`) 선택
+   - `Folder`를 `/ (root)` 선택
+   - `Save` 클릭
+
+3. **배포 확인**
+   - 몇 분 후 `https://[사용자명].github.io/[저장소명]/` 주소로 접속 가능
+   - 예: `https://username.github.io/combat_simulation/`
+
+4. **팀원들에게 공유**
+   - 배포된 URL을 팀원들에게 공유
+   - 팀원들은 웹 브라우저에서 바로 접속하여 사용 가능
+   - CSV 파일은 웹에서 직접 다운로드하거나, GitHub에서 다운로드 가능
+
+#### 주의사항:
+- CSV 파일이 100MB 이상이면 GitHub에 올리기 어려울 수 있습니다
+- 이 경우 방법 2 (Vercel) 또는 방법 3 (로컬 실행)을 사용하세요
+
+---
+
+### 방법 2: Vercel 배포
+
+**장점**: 이미 설정 파일(`vercel.json`)이 있음, 빠른 배포, 큰 파일 지원
+
+#### 설정 방법:
+
+1. **Vercel 계정 생성 및 연결**
+   - [vercel.com](https://vercel.com) 접속
+   - GitHub 계정으로 로그인
+   - `New Project` 클릭
+   - GitHub 저장소 선택
+
+2. **배포 설정**
+   - `Framework Preset`: Other 선택
+   - `Root Directory`: `.` (현재 디렉토리)
+   - `Build Command`: 비워두기 (빌드 불필요)
+   - `Output Directory`: `.` 선택
+   - `Deploy` 클릭
+
+3. **배포 완료**
+   - 자동으로 배포 URL 생성 (예: `https://combat-simulation.vercel.app`)
+   - 이후 코드 푸시 시 자동 재배포
+
+4. **팀원들에게 공유**
+   - Vercel 배포 URL 공유
+   - CSV 파일은 GitHub에서 다운로드하거나, Vercel 배포본에서 직접 접근 가능
+
+---
+
+### 방법 3: 로컬 실행 (각자 다운로드)
+
+**장점**: 인터넷 연결 불필요, 완전한 오프라인 사용 가능
+
+#### 설정 방법:
+
+1. **GitHub에서 클론**
+   ```bash
+   git clone https://github.com/[사용자명]/[저장소명].git
+   cd [저장소명]
+   ```
+
+2. **CSV 파일 확인**
+   - `sample_dataset_kill_tick_info.csv` 파일이 포함되어 있는지 확인
+   - 없다면 GitHub에서 직접 다운로드
+
+3. **브라우저에서 실행**
+   - `index.html` 파일을 더블클릭하여 브라우저에서 열기
+   - 또는 로컬 서버 실행:
+     ```bash
+     # Python 3
+     python -m http.server 8000
+     
+     # Node.js (http-server 설치 필요)
+     npx http-server -p 8000
+     ```
+   - 브라우저에서 `http://localhost:8000` 접속
+
+4. **CSV 파일 로드**
+   - 좌측 사이드바에서 CSV 파일 선택하여 로드
+
+---
+
+### 방법 비교
+
+| 방법 | 장점 | 단점 | 추천 대상 |
+|------|------|------|----------|
+| **GitHub Pages** | 무료, 간단, CSV 포함 | 파일 크기 제한 (100MB) | 소규모 CSV 파일 |
+| **Vercel** | 빠른 배포, 큰 파일 지원 | 계정 필요 | 프로덕션 배포 |
+| **로컬 실행** | 오프라인 가능, 완전한 제어 | 각자 설정 필요 | 개발/테스트 환경 |
+
+---
+
+### CSV 파일이 큰 경우 (100MB 이상)
+
+1. **GitHub Releases 사용**
+   - GitHub 저장소 → `Releases` → `Create a new release`
+   - CSV 파일을 첨부 파일로 업로드
+   - 팀원들은 Releases 페이지에서 다운로드
+
+2. **외부 스토리지 사용**
+   - Google Drive, Dropbox 등에 CSV 파일 업로드
+   - 공유 링크를 README에 추가
+   - 팀원들은 링크에서 다운로드 후 로컬에서 사용
+
+3. **Git LFS 사용** (고급)
+   ```bash
+   git lfs install
+   git lfs track "*.csv"
+   git add .gitattributes
+   git add sample_dataset_kill_tick_info.csv
+   git commit -m "Add CSV with Git LFS"
+   git push
+   ```
 
 ---
 

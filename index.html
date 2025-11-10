@@ -679,19 +679,6 @@
                 </div>
             </div>
 
-            <div class="sidebar-section">
-                <h3>Map Image (Optional)</h3>
-                <div id="map-image-input">
-                    <input type="file" id="map-image-file" accept="image/*" style="width: 100%; padding: 8px; margin-bottom: 10px; background: #2a2f3e; color: #fff; border: 1px solid #3a3f4e; border-radius: 4px; cursor: pointer;" />
-                    <div id="map-image-status" style="font-size: 11px; color: #8a8fa5; margin-bottom: 10px;">2D 맵 이미지 업로드 (PNG, JPG)</div>
-                    <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 10px;">
-                        <label style="font-size: 11px; color: #8a8fa5;">투명도:</label>
-                        <input type="range" id="map-image-opacity" min="0" max="100" value="80" style="flex: 1;" />
-                        <span id="map-opacity-value" style="font-size: 11px; color: #8a8fa5; min-width: 35px;">80%</span>
-                    </div>
-                    <button id="remove-map-image-btn" style="width: 100%; padding: 6px; background: #ff6b6b; color: #fff; border: none; border-radius: 4px; cursor: pointer; display: none;">맵 이미지 제거</button>
-                </div>
-            </div>
 
             
 
@@ -984,8 +971,8 @@
                     }
                 });
 
-                // 맵 이미지 파일 입력 설정
-                this.setupMapImageInput();
+                // 맵 이미지 자동 로드 (POC: anubis_pro_callouts.png)
+                // setupMapImageInput은 제거됨 (POC에서는 자동 로드)
 
                 // 팝업 닫기 버튼
                 const closeBtn = document.getElementById('csv-popup-close');
@@ -2112,10 +2099,9 @@ Three.js · PapaParse · Pure JavaScript`
                     this.populateKillPicker();
                     this.populatePlayerPicker();
                     
-                    // POC: anubis 맵이면 자동으로 맵 이미지 로드
-                    if (this.detectedMapName && this.detectedMapName.toLowerCase().includes('anubis')) {
-                        this.loadMapImageFromPath('anubis_pro_callouts.png');
-                    }
+                    // POC: CSV 로드 후 자동으로 맵 이미지 로드
+                    // 맵 감지와 상관없이 항상 anubis_pro_callouts.png 로드 시도
+                    this.loadMapImageFromPath('anubis_pro_callouts.png');
                     
                     // 파일 로드 후 3D 시뮬레이션 분석 탭으로 자동 전환
                     this.showInvestigate();
@@ -3419,82 +3405,10 @@ Three.js · PapaParse · Pure JavaScript`
                 console.log(`모든 플레이어 경로 ${this.pathLines.length}개 렌더링 완료`);
             }
             
-            setupMapImageInput() {
-                const mapImageInput = document.getElementById('map-image-file');
-                const mapImageStatus = document.getElementById('map-image-status');
-                const removeBtn = document.getElementById('remove-map-image-btn');
-                const opacitySlider = document.getElementById('map-image-opacity');
-                const opacityValue = document.getElementById('map-opacity-value');
-                
-                if (!mapImageInput) return;
-                
-                // 이미지 파일 선택
-                mapImageInput.addEventListener('change', (e) => {
-                    const file = e.target.files && e.target.files[0];
-                    if (file) {
-                        if (!file.type.startsWith('image/')) {
-                            alert('이미지 파일만 업로드할 수 있습니다.');
-                            return;
-                        }
-                        this.loadMapImage(file);
-                        if (mapImageStatus) {
-                            mapImageStatus.textContent = `로드됨: ${file.name}`;
-                            mapImageStatus.style.color = '#4a90e2';
-                        }
-                        if (removeBtn) removeBtn.style.display = 'block';
-                    }
-                });
-                
-                // 투명도 조절
-                if (opacitySlider && opacityValue) {
-                    opacitySlider.addEventListener('input', (e) => {
-                        const opacity = parseInt(e.target.value) / 100;
-                        opacityValue.textContent = `${e.target.value}%`;
-                        if (this.mapImagePlane && this.mapImagePlane.material) {
-                            this.mapImagePlane.material.opacity = opacity;
-                        }
-                    });
-                }
-                
-                // 맵 이미지 제거
-                if (removeBtn) {
-                    removeBtn.addEventListener('click', () => {
-                        this.removeMapImage();
-                        if (mapImageInput) mapImageInput.value = '';
-                        if (mapImageStatus) {
-                            mapImageStatus.textContent = '2D 맵 이미지 업로드 (PNG, JPG)';
-                            mapImageStatus.style.color = '#8a8fa5';
-                        }
-                        removeBtn.style.display = 'none';
-                        if (opacitySlider) opacitySlider.value = 80;
-                        if (opacityValue) opacityValue.textContent = '80%';
-                    });
-                }
-            }
-            
-            loadMapImage(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        // 텍스처 생성
-                        const texture = new THREE.TextureLoader().load(e.target.result);
-                        texture.wrapS = THREE.RepeatWrapping;
-                        texture.wrapT = THREE.RepeatWrapping;
-                        this.mapImageTexture = texture;
-                        
-                        // 맵 경계가 있으면 바로 렌더링
-                        if (this.mapBounds) {
-                            this.renderMapImage();
-                        }
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
+            // setupMapImageInput 제거됨 (POC에서는 자동 로드만 사용)
             
             loadMapImageFromPath(imagePath) {
-                // 이미지 경로로 직접 로드 (POC용)
+                // 이미지 경로로 직접 로드 (POC용 - 자동 로드)
                 const textureLoader = new THREE.TextureLoader();
                 textureLoader.load(
                     imagePath,
@@ -3507,15 +3421,8 @@ Three.js · PapaParse · Pure JavaScript`
                         if (this.mapBounds) {
                             this.renderMapImage();
                             console.log('맵 이미지 자동 로드 완료:', imagePath);
-                            
-                            // UI 업데이트
-                            const mapImageStatus = document.getElementById('map-image-status');
-                            if (mapImageStatus) {
-                                mapImageStatus.textContent = `자동 로드됨: ${imagePath}`;
-                                mapImageStatus.style.color = '#4a90e2';
-                            }
-                            const removeBtn = document.getElementById('remove-map-image-btn');
-                            if (removeBtn) removeBtn.style.display = 'block';
+                        } else {
+                            console.log('맵 경계가 아직 계산되지 않음. 맵 경계 계산 후 자동 렌더링됩니다.');
                         }
                     },
                     undefined,
@@ -3535,17 +3442,22 @@ Three.js · PapaParse · Pure JavaScript`
                 }
                 
                 const bounds = this.mapBounds;
-                // 맵 경계: X는 좌우, Y는 전후(깊이), Z는 높이
-                // 평면은 X-Y 평면에 배치 (Z는 높이이므로 무시)
+                // 좌표계 매핑:
+                // 게임 좌표계: X(좌우), Y(전후), Z(높이)
+                // Three.js 좌표계: X(좌우), Y(높이), Z(전후)
+                // 플레이어 위치: mesh.position.set(player.position[0], player.position[2], player.position[1])
+                //   -> gameX -> sceneX, gameZ -> sceneY, gameY -> sceneZ
+                
+                // 맵 이미지는 X-Z 평면에 배치 (위에서 내려다볼 때 보이도록)
+                // X-Z 평면은 기본 PlaneGeometry의 방향
                 const mapWidth = bounds.width;   // X 방향 (좌우)
-                const mapHeight = bounds.depth;   // Y 방향 (전후)
+                const mapDepth = bounds.depth;   // Y 방향 (전후) -> scene Z 방향
                 
-                // 평면 지오메트리 생성 (맵 경계에 맞춤)
-                const planeGeometry = new THREE.PlaneGeometry(mapWidth, mapHeight);
+                // 평면 지오메트리 생성 (X-Z 평면, rotation 없음)
+                const planeGeometry = new THREE.PlaneGeometry(mapWidth, mapDepth);
                 
-                // 투명도 가져오기
-                const opacitySlider = document.getElementById('map-image-opacity');
-                const opacity = opacitySlider ? parseInt(opacitySlider.value) / 100 : 0.8;
+                // 투명도 (기본값 80%)
+                const opacity = 0.8;
                 
                 // 머티리얼 생성
                 const material = new THREE.MeshBasicMaterial({
@@ -3558,27 +3470,26 @@ Three.js · PapaParse · Pure JavaScript`
                 // 메시 생성
                 this.mapImagePlane = new THREE.Mesh(planeGeometry, material);
                 
-                // 맵 경계의 중심에 배치 (Z는 약간 아래로)
-                // Three.js 좌표계: X(좌우), Y(높이), Z(전후)
-                // 게임 좌표계: X(좌우), Y(전후), Z(높이)
-                // 따라서: gameX -> sceneX, gameY -> sceneZ, gameZ -> sceneY
+                // X-Z 평면에 배치 (Y는 높이)
+                // 게임 좌표: centerX, centerY, centerZ
+                // Three.js 좌표: centerX, centerZ, centerY
                 this.mapImagePlane.position.set(
-                    bounds.centerX,           // X: 중심
-                    bounds.centerZ - 5,       // Y: 높이 (약간 아래)
+                    bounds.centerX,           // X: 좌우 중심
+                    bounds.centerZ - 10,       // Y: 높이 (플레이어보다 약간 아래)
                     bounds.centerY            // Z: 전후 중심
                 );
                 
-                // 평면을 수평으로 회전 (X축으로 -90도)
-                this.mapImagePlane.rotation.x = -Math.PI / 2;
+                // 회전 없음 (기본 X-Z 평면 사용)
+                // rotation은 기본값 (0, 0, 0) 유지
                 
                 // 씬에 추가 (배경으로 사용되므로 먼저 추가)
                 this.scene.add(this.mapImagePlane);
                 
-                console.log('맵 이미지 렌더링 완료:', mapWidth, '×', mapHeight);
+                console.log('맵 이미지 렌더링 완료 (X-Z 평면):', mapWidth, '×', mapDepth);
                 console.log('맵 경계:', {
                     minX: bounds.minX, maxX: bounds.maxX,
                     minY: bounds.minY, maxY: bounds.maxY,
-                    centerX: bounds.centerX, centerY: bounds.centerY
+                    centerX: bounds.centerX, centerY: bounds.centerY, centerZ: bounds.centerZ
                 });
             }
             

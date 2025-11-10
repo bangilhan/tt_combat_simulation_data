@@ -917,6 +917,20 @@
                 this.selectedPlayer = null;
                 this.mapImagePlane = null; // 2D 맵 이미지 평면
                 this.mapImageTexture = null; // 맵 이미지 텍스처
+                this.mapImageSettings = {
+                    imagePath: 'anubis-pro-vs-matchmaking-callouts-v0-k3ix37861a1a1.webp',
+                    repeatX: 1,
+                    repeatY: 1,
+                    offsetX: 0,
+                    offsetY: 0,
+                    textureRotation: 0,
+                    scaleX: 1,
+                    scaleZ: 1,
+                    worldOffsetX: 0,
+                    worldOffsetZ: 0,
+                    worldOffsetY: 0,
+                    worldRotation: 0
+                };
                 this.followPlayer = false;
                 
                 this.init();
@@ -972,7 +986,7 @@
                     }
                 });
 
-                // 맵 이미지 자동 로드 (POC: anubis_pro_callouts.png)
+                // 맵 이미지 자동 로드 (POC: anubis 프로맵)
                 // setupMapImageInput은 제거됨 (POC에서는 자동 로드)
 
                 // 팝업 닫기 버튼
@@ -2101,8 +2115,10 @@ Three.js · PapaParse · Pure JavaScript`
                     this.populatePlayerPicker();
                     
                     // POC: CSV 로드 후 자동으로 맵 이미지 로드
-                    // 맵 감지와 상관없이 항상 anubis_pro_callouts.png 로드 시도
-                    this.loadMapImageFromPath('anubis_pro_callouts.png');
+                    // 맵 감지와 상관없이 항상 mapImageSettings 이미지 로드 시도
+                    if (this.mapImageSettings && this.mapImageSettings.imagePath) {
+                        this.loadMapImageFromPath(this.mapImageSettings.imagePath);
+                    }
                     
                     // 파일 로드 후 3D 시뮬레이션 분석 탭으로 자동 전환
                     this.showInvestigate();
@@ -3409,17 +3425,15 @@ Three.js · PapaParse · Pure JavaScript`
             // setupMapImageInput 제거됨 (POC에서는 자동 로드만 사용)
             
             loadMapImageFromPath(imagePath) {
-                // 이미지 경로로 직접 로드 (POC용 - 자동 로드)
+                if (!imagePath) return;
                 const textureLoader = new THREE.TextureLoader();
                 textureLoader.load(
                     imagePath,
                     (texture) => {
-                        texture.wrapS = THREE.RepeatWrapping;
-                        texture.wrapT = THREE.RepeatWrapping;
+                        this.applyMapImageSettings(texture);
                         this.mapImageTexture = texture;
                         console.log('맵 이미지 텍스처 로드 완료:', imagePath);
                         
-                        // 맵 경계가 있으면 바로 렌더링
                         if (this.mapBounds) {
                             this.renderMapImage();
                             console.log('맵 이미지 자동 렌더링 완료');
@@ -3432,6 +3446,17 @@ Three.js · PapaParse · Pure JavaScript`
                         console.error('맵 이미지 로드 실패:', imagePath, error);
                     }
                 );
+            }
+            
+            applyMapImageSettings(texture) {
+                if (!texture || !this.mapImageSettings) return;
+                const cfg = this.mapImageSettings;
+                texture.wrapS = THREE.ClampToEdgeWrapping;
+                texture.wrapT = THREE.ClampToEdgeWrapping;
+                texture.repeat.set(cfg.repeatX ?? 1, cfg.repeatY ?? 1);
+                texture.offset.set(cfg.offsetX ?? 0, cfg.offsetY ?? 0);
+                texture.rotation = cfg.textureRotation ?? 0;
+                texture.center.set(0.5, 0.5);
             }
             
             renderMapImage() {
@@ -3452,8 +3477,9 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 // 맵 이미지는 X-Z 평면에 배치 (위에서 내려다볼 때 보이도록)
                 // PlaneGeometry는 기본적으로 Y-Z 평면이므로 X-Z 평면으로 회전 필요
-                const mapWidth = bounds.width;   // X 방향 (좌우)
-                const mapDepth = bounds.depth;   // Y 방향 (전후) -> scene Z 방향
+                const cfg = this.mapImageSettings || {};
+                const mapWidth = bounds.width * (cfg.scaleX ?? 1);   // X 방향 (좌우)
+                const mapDepth = bounds.depth * (cfg.scaleZ ?? 1);   // Y 방향 (전후) -> scene Z 방향
                 
                 // 평면 지오메트리 생성 (기본 Y-Z 평면)
                 const planeGeometry = new THREE.PlaneGeometry(mapWidth, mapDepth);
@@ -3475,15 +3501,24 @@ Three.js · PapaParse · Pure JavaScript`
                 // X-Z 평면에 배치 (Y는 높이)
                 // 게임 좌표: centerX, centerY, centerZ
                 // Three.js 좌표: centerX, centerZ, centerY
+                const worldOffsetX = cfg.worldOffsetX ?? 0;
+                const worldOffsetZ = cfg.worldOffsetZ ?? 0;
+                const verticalOffset = cfg.worldOffsetY ?? 0;
+                const baseHeight = Number.isFinite(bounds.minZ)
+                    ? bounds.minZ - 5
+                    : (Number.isFinite(bounds.centerZ) ? bounds.centerZ - 5 : -5);
                 this.mapImagePlane.position.set(
-                    bounds.centerX,           // X: 좌우 중심
-                    bounds.centerZ - 5,       // Y: 높이 (플레이어보다 약간 아래)
-                    bounds.centerY            // Z: 전후 중심
+                    bounds.centerX + worldOffsetX,           // X: 좌우 중심
+                    baseHeight + verticalOffset,             // Y: 높이
+                    bounds.centerY + worldOffsetZ            // Z: 전후 중심
                 );
                 
                 // X-Z 평면으로 회전 (X축으로 -90도 회전)
                 // PlaneGeometry는 기본적으로 Y-Z 평면이므로 X-Z 평면으로 만들려면 X축 회전 필요
                 this.mapImagePlane.rotation.x = -Math.PI / 2;
+                if (cfg.worldRotation) {
+                    this.mapImagePlane.rotation.y = cfg.worldRotation;
+                }
                 
                 // 씬에 추가 (배경으로 사용되므로 먼저 추가)
                 this.scene.add(this.mapImagePlane);

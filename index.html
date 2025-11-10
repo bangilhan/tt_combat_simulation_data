@@ -3535,11 +3535,13 @@ Three.js · PapaParse · Pure JavaScript`
                 }
                 
                 const bounds = this.mapBounds;
-                const width = bounds.width;
-                const height = bounds.depth;
+                // 맵 경계: X는 좌우, Y는 전후(깊이), Z는 높이
+                // 평면은 X-Y 평면에 배치 (Z는 높이이므로 무시)
+                const mapWidth = bounds.width;   // X 방향 (좌우)
+                const mapHeight = bounds.depth;   // Y 방향 (전후)
                 
                 // 평면 지오메트리 생성 (맵 경계에 맞춤)
-                const planeGeometry = new THREE.PlaneGeometry(width, height);
+                const planeGeometry = new THREE.PlaneGeometry(mapWidth, mapHeight);
                 
                 // 투명도 가져오기
                 const opacitySlider = document.getElementById('map-image-opacity');
@@ -3556,8 +3558,15 @@ Three.js · PapaParse · Pure JavaScript`
                 // 메시 생성
                 this.mapImagePlane = new THREE.Mesh(planeGeometry, material);
                 
-                // 맵 경계 중심에 배치 (Z=0 또는 약간 아래)
-                this.mapImagePlane.position.set(bounds.centerX, bounds.centerZ - 1, bounds.centerY);
+                // 맵 경계의 중심에 배치 (Z는 약간 아래로)
+                // Three.js 좌표계: X(좌우), Y(높이), Z(전후)
+                // 게임 좌표계: X(좌우), Y(전후), Z(높이)
+                // 따라서: gameX -> sceneX, gameY -> sceneZ, gameZ -> sceneY
+                this.mapImagePlane.position.set(
+                    bounds.centerX,           // X: 중심
+                    bounds.centerZ - 5,       // Y: 높이 (약간 아래)
+                    bounds.centerY            // Z: 전후 중심
+                );
                 
                 // 평면을 수평으로 회전 (X축으로 -90도)
                 this.mapImagePlane.rotation.x = -Math.PI / 2;
@@ -3565,7 +3574,12 @@ Three.js · PapaParse · Pure JavaScript`
                 // 씬에 추가 (배경으로 사용되므로 먼저 추가)
                 this.scene.add(this.mapImagePlane);
                 
-                console.log('맵 이미지 렌더링 완료:', width, '×', height);
+                console.log('맵 이미지 렌더링 완료:', mapWidth, '×', mapHeight);
+                console.log('맵 경계:', {
+                    minX: bounds.minX, maxX: bounds.maxX,
+                    minY: bounds.minY, maxY: bounds.maxY,
+                    centerX: bounds.centerX, centerY: bounds.centerY
+                });
             }
             
             removeMapImage() {

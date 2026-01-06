@@ -4488,16 +4488,25 @@ Three.js · PapaParse · Pure JavaScript`
                     else if (e.altKey) {
                         zoomSpeed = 1;
                     }
-                    // Shift 키: 빠른 줌 (2배)
+                    // Shift 키: 빠른 줌 (10배)
                     else if (e.shiftKey) {
                         zoomSpeed = 10;
                     }
                     
-                    this.cameraDistance += e.deltaY * zoomSpeed;
+                    // 줌 방향: deltaY > 0이면 아래로 스크롤 (축소), deltaY < 0이면 위로 스크롤 (확대)
+                    const zoomDelta = e.deltaY * zoomSpeed;
+                    this.cameraDistance += zoomDelta;
+                    
                     // 확대/축소 한계 완화
                     const minDist = Math.max(10, this.baseCameraDistance * 0.01); // 더 가까이 확대 허용
                     const maxDist = Math.max(minDist + 500, this.baseCameraDistance * 25.0);  // 더 멀리 축소 허용
                     this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
+                    
+                    // 카메라 즉시 업데이트
+                    if (this.updateCamera) {
+                        this.updateCamera();
+                    }
+                    
                     e.preventDefault();
                 });
                 

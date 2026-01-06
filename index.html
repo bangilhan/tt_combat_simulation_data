@@ -999,6 +999,7 @@
                     worldRotation: 0
                 };
                 this.followPlayer = false;
+                this.manualZoomInFollow = false; // Follow 모드에서 수동 줌 조정 여부
                 
                 // window.simulation에 인스턴스 할당 (디버깅용)
                 window.simulation = this;
@@ -2739,13 +2740,77 @@ Three.js · PapaParse · Pure JavaScript`
                         // 먼저 모든 플레이어의 경로를 라인으로 그려서 시각화
                         this.renderAllPlayerPaths();
                         
-                        // 경로 렌더링 후 실제 경로 경계에 맞게 자동으로 Fit to View
-                        setTimeout(() => {
-                            this.fitToView();
-                        }, 200);
-                        
                         // 그 다음 캐릭터 렌더링
                         this.renderTick(0);
+                        
+                        // 경로 렌더링 후 첫 틱의 플레이어 위치에 맞게 카메라 설정
+                        setTimeout(() => {
+                            // 첫 틱의 플레이어 위치를 기반으로 적절한 뷰 설정
+                            if (this.data.positions[0] && this.data.positions[0].players && this.data.positions[0].players.length > 0) {
+                                const firstTickPlayers = this.data.positions[0].players;
+                                
+                                // 모든 플레이어의 위치 범위 계산
+                                let minX = Infinity, maxX = -Infinity;
+                                let minZ = Infinity, maxZ = -Infinity;
+                                
+                                firstTickPlayers.forEach(player => {
+                                    if (player.position && Array.isArray(player.position)) {
+                                        const x = player.position[0];
+                                        const z = player.position[1]; // Three.js Z축
+                                        if (!Number.isNaN(x)) {
+                                            minX = Math.min(minX, x);
+                                            maxX = Math.max(maxX, x);
+                                        }
+                                        if (!Number.isNaN(z)) {
+                                            minZ = Math.min(minZ, z);
+                                            maxZ = Math.max(maxZ, z);
+                                        }
+                                    }
+                                });
+                                
+                                if (minX !== Infinity && minZ !== Infinity) {
+                                    // 플레이어 위치 중심으로 카메라 설정
+                                    const centerX = (minX + maxX) / 2;
+                                    const centerZ = (minZ + maxZ) / 2;
+                                    const width = Math.max(maxX - minX, 100);
+                                    const depth = Math.max(maxZ - minZ, 100);
+                                    const maxDim = Math.max(width, depth);
+                                    
+                                    // 카메라 타겟을 플레이어 중심으로 설정
+                                    this.cameraTarget = {
+                                        x: centerX,
+                                        y: this.mapBounds ? this.mapBounds.centerZ : 0,
+                                        z: centerZ
+                                    };
+                                    
+                                    // 적절한 거리 계산 (플레이어들이 잘 보이도록)
+                                    const fov = this.camera.fov * (Math.PI / 180);
+                                    const aspect = this.camera.aspect;
+                                    const distanceX = (width / 2) / Math.tan(fov / 2) / aspect;
+                                    const distanceZ = (depth / 2) / Math.tan(fov / 2);
+                                    this.cameraDistance = Math.max(distanceX, distanceZ) * 1.5; // 50% 여유 공간
+                                    
+                                    // 패닝 오프셋 초기화
+                                    if (this.panOffset) {
+                                        this.panOffset.x = 0;
+                                        this.panOffset.y = 0;
+                                        this.panOffset.z = 0;
+                                    }
+                                    
+                                    // 카메라 각도를 위에서 내려다보는 각도로 설정
+                                    this.cameraRotationX = 0.3; // 약간 기울임
+                                    this.cameraRotationY = 0;
+                                    
+                                    this.updateCamera();
+                                } else {
+                                    // 플레이어 위치가 없으면 기존 Fit to View 사용
+                                    this.fitToView();
+                                }
+                            } else {
+                                // 플레이어가 없으면 기존 Fit to View 사용
+                                this.fitToView();
+                            }
+                        }, 300);
                         
                         console.log('렌더링 후 씬 오브젝트 수:', this.scene.children.length);
                         console.log('플레이어 오브젝트 수:', this.playerObjects.size);
@@ -4404,16 +4469,17 @@ Three.js · PapaParse · Pure JavaScript`
 
                 canvas.addEventListener('mousemove', (e) => {
                     if (isMouseDown) {
-                        // Follow 모드일 때는 마우스 드래그로 카메라 회전/패닝 비활성화
-                        if (this.followPlayer && this.selectedPlayer) {
-                            return;
-                        }
-                        
                         const deltaX = e.clientX - mouseX;
                         const deltaY = e.clientY - mouseY;
                         
                         // Shift 키 상태를 실시간으로 확인 (mousemove 중에도 변경 가능)
                         const shouldPan = e.shiftKey;
+                        
+                        // Follow 모드에서도 Shift 키를 누르면 패닝 허용
+                        if (this.followPlayer && this.selectedPlayer && !shouldPan) {
+                            // Follow 모드이고 Shift가 안 눌려있으면 드래그 비활성화
+                            return;
+                        }
                         
                         if (shouldPan) {
                             // 패닝 모드: 카메라를 평면으로 이동
@@ -4502,6 +4568,11 @@ Three.js · PapaParse · Pure JavaScript`
                     const maxDist = Math.max(minDist + 500, this.baseCameraDistance * 25.0);  // 더 멀리 축소 허용
                     this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
                     
+                    // Follow 모드에서 수동 줌 조정 시 플래그 설정
+                    if (this.followPlayer && this.selectedPlayer) {
+                        this.manualZoomInFollow = true;
+                    }
+                    
                     // 카메라 즉시 업데이트
                     if (this.updateCamera) {
                         this.updateCamera();
@@ -4512,47 +4583,63 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 // 키보드로 세밀한 줌 컨트롤 추가 (+, - 키)
                 document.addEventListener('keydown', (e) => {
+                    let zoomChanged = false;
                     // Ctrl + +/- : 매우 세밀한 줌
                     if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
                         this.cameraDistance -= 1;
+                        zoomChanged = true;
                         e.preventDefault();
                     } else if (e.ctrlKey && e.key === '-') {
                         this.cameraDistance += 1;
+                        zoomChanged = true;
                         e.preventDefault();
                     }
                     // Alt + +/- : 세밀한 줌
                     else if (e.altKey && (e.key === '+' || e.key === '=')) {
                         this.cameraDistance -= 5;
+                        zoomChanged = true;
                         e.preventDefault();
                     } else if (e.altKey && e.key === '-') {
                         this.cameraDistance += 5;
+                        zoomChanged = true;
                         e.preventDefault();
                     }
                     // Shift + +/- : 빠른 줌
                     else if (e.shiftKey && (e.key === '+' || e.key === '=')) {
                         this.cameraDistance -= 50;
+                        zoomChanged = true;
                         e.preventDefault();
                     } else if (e.shiftKey && e.key === '-') {
                         this.cameraDistance += 50;
+                        zoomChanged = true;
                         e.preventDefault();
                     }
                     // +/- : 일반 줌
                     else if (e.key === '+' || e.key === '=') {
                         this.cameraDistance -= 10;
+                        zoomChanged = true;
                         e.preventDefault();
                     } else if (e.key === '-') {
                         this.cameraDistance += 10;
+                        zoomChanged = true;
                         e.preventDefault();
                     }
                     
-                    // 한계 적용
-                    const minDist = Math.max(10, this.baseCameraDistance * 0.01);
-                    const maxDist = Math.max(minDist + 500, this.baseCameraDistance * 25.0);
-                    this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
-                    
-                    // 카메라 즉시 업데이트
-                    if (this.updateCamera) {
-                        this.updateCamera();
+                    if (zoomChanged) {
+                        // 한계 적용
+                        const minDist = Math.max(10, this.baseCameraDistance * 0.01);
+                        const maxDist = Math.max(minDist + 500, this.baseCameraDistance * 25.0);
+                        this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
+                        
+                        // Follow 모드에서 수동 줌 조정 시 플래그 설정
+                        if (this.followPlayer && this.selectedPlayer) {
+                            this.manualZoomInFollow = true;
+                        }
+                        
+                        // 카메라 즉시 업데이트
+                        if (this.updateCamera) {
+                            this.updateCamera();
+                        }
                     }
                 });
 
@@ -4561,17 +4648,18 @@ Three.js · PapaParse · Pure JavaScript`
                     if (this.followPlayer && this.selectedPlayer && this.cameraTarget) {
                         const target = this.cameraTarget;
                         // 2D 뷰: 카메라를 위에서 내려다보는 각도로 고정 (X, Y 평면만 고려)
-                        // 카메라를 타겟 위에 수직으로 배치
+                        // 카메라를 타겟 위에 수직으로 배치 (플레이어가 화면 가운데 오도록)
                         this.camera.position.set(
-                            target.x + this.panOffset.x,
+                            target.x + (this.panOffset ? this.panOffset.x : 0),
                             target.y + this.cameraDistance, // Y축(높이)으로만 거리 조정
-                            target.z + this.panOffset.z
+                            target.z + (this.panOffset ? this.panOffset.z : 0)
                         );
                         // 타겟을 X, Z 평면에서 바라보기 (Y는 높이이므로 무시)
+                        // 플레이어가 화면 정중앙에 오도록 lookAt
                         this.camera.lookAt(
-                            target.x + this.panOffset.x,
+                            target.x + (this.panOffset ? this.panOffset.x : 0),
                             target.y, // 타겟의 높이는 유지하되 카메라는 위에서 내려다봄
-                            target.z + this.panOffset.z
+                            target.z + (this.panOffset ? this.panOffset.z : 0)
                         );
                         return;
                     }
@@ -4851,6 +4939,8 @@ Three.js · PapaParse · Pure JavaScript`
                     this.followPlayer = !this.followPlayer;
                     document.getElementById('follow-toggle').textContent = this.followPlayer ? 'Following' : 'Follow';
                     if (this.followPlayer) {
+                        // Follow 모드 시작 시 수동 줌 플래그 초기화 (자동 줌 활성화)
+                        this.manualZoomInFollow = false;
                         // Follow 모드 시작 시 즉시 플레이어 위치로 카메라 이동
                         const tickData = this.data.positions[this.currentTick];
                         if (tickData && tickData.players) {
@@ -4872,6 +4962,8 @@ Three.js · PapaParse · Pure JavaScript`
                             }
                         }
                     } else {
+                        // Follow 모드 종료 시 수동 줌 플래그 초기화
+                        this.manualZoomInFollow = false;
                         this.cameraTarget = null;
                         this.cameraDistance = this.baseCameraDistance;
                     }
@@ -5382,7 +5474,114 @@ Three.js · PapaParse · Pure JavaScript`
                 minimapCanvas.width = 250;
                 minimapCanvas.height = 250;
                 
+                // 미니맵 클릭 이벤트 추가
+                minimapCanvas.addEventListener('click', (e) => {
+                    this.handleMinimapClick(e, minimapCanvas);
+                });
+                
+                // 미니맵에 마우스 호버 시 커서 변경
+                minimapCanvas.style.cursor = 'pointer';
+                
                 this.updateMinimap();
+            }
+            
+            handleMinimapClick(e, canvas) {
+                if (!this.mapBounds || !this.data) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+                
+                const bounds = this.mapBounds;
+                const pathWidth = bounds.pathWidth || bounds.width;
+                const pathDepth = bounds.pathDepth || bounds.depth;
+                const pathMinX = bounds.pathMinX !== undefined ? bounds.pathMinX : bounds.minX;
+                const pathMinZ = bounds.pathMinZ !== undefined ? bounds.pathMinZ : bounds.minZ;
+                
+                const scaleX = canvas.width / pathWidth;
+                const scaleY = canvas.height / pathDepth;
+                const scale = Math.min(scaleX, scaleY);
+                
+                const offsetX = (canvas.width - pathWidth * scale) / 2;
+                const offsetY = (canvas.height - pathDepth * scale) / 2;
+                
+                // 클릭한 위치를 월드 좌표로 변환
+                const worldX = pathMinX + (clickX - offsetX) / scale;
+                const worldZ = pathMinZ + (clickY - offsetY) / scale;
+                
+                // 클릭한 위치 근처의 플레이어 찾기
+                if (this.data.positions && this.currentTick < this.data.positions.length) {
+                    const tickData = this.data.positions[this.currentTick];
+                    if (tickData && tickData.players) {
+                        let closestPlayer = null;
+                        let minDistance = Infinity;
+                        
+                        tickData.players.forEach(player => {
+                            if (!player.position || !Array.isArray(player.position)) return;
+                            
+                            const playerX = player.position[0];
+                            const playerZ = player.position[1]; // Three.js Z축
+                            const distance = Math.sqrt(
+                                Math.pow(playerX - worldX, 2) + 
+                                Math.pow(playerZ - worldZ, 2)
+                            );
+                            
+                            // 클릭 반경 내의 플레이어 찾기 (미니맵 스케일 기준)
+                            const clickRadius = 50 / scale; // 약 50픽셀 반경
+                            if (distance < clickRadius && distance < minDistance) {
+                                minDistance = distance;
+                                closestPlayer = player;
+                            }
+                        });
+                        
+                        if (closestPlayer) {
+                            // 가장 가까운 플레이어를 선택하고 카메라 이동
+                            const select = document.getElementById('player-select');
+                            if (select) {
+                                select.value = closestPlayer.name;
+                                this.selectedPlayer = closestPlayer.name;
+                            }
+                            
+                            // 카메라를 해당 플레이어 위치로 이동
+                            this.cameraTarget = {
+                                x: closestPlayer.position[0],
+                                y: closestPlayer.position[2],
+                                z: closestPlayer.position[1]
+                            };
+                            
+                            // 적절한 거리 설정
+                            const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
+                            this.cameraDistance = Math.max(500, Math.min(5000, mapSize * 0.15));
+                            
+                            // 패닝 오프셋 초기화
+                            if (this.panOffset) {
+                                this.panOffset.x = 0;
+                                this.panOffset.y = 0;
+                                this.panOffset.z = 0;
+                            }
+                            
+                            this.updateCamera();
+                        } else {
+                            // 플레이어가 없으면 클릭한 위치로 카메라 이동
+                            this.cameraTarget = {
+                                x: worldX,
+                                y: bounds.centerZ || 0,
+                                z: worldZ
+                            };
+                            
+                            const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
+                            this.cameraDistance = Math.max(500, Math.min(5000, mapSize * 0.15));
+                            
+                            if (this.panOffset) {
+                                this.panOffset.x = 0;
+                                this.panOffset.y = 0;
+                                this.panOffset.z = 0;
+                            }
+                            
+                            this.updateCamera();
+                        }
+                    }
+                }
             }
             
             updateMinimap() {
@@ -5420,7 +5619,7 @@ Three.js · PapaParse · Pure JavaScript`
                     pathDepth * scale
                 );
                 
-                // 플레이어 경로를 미니맵에 그리기 (전체 경로 - 반투명)
+                // 플레이어 경로를 미니맵에 그리기 (전체 경로 - 더 명확하게)
                 if (this.playerPathLines && this.playerPathLines.size > 0) {
                     this.playerPathLines.forEach((line, playerName) => {
                         const geometry = line.geometry;
@@ -5428,16 +5627,22 @@ Three.js · PapaParse · Pure JavaScript`
                         
                         const positions = geometry.attributes.position.array;
                         const isCT = !playerName.startsWith('-');
-                        ctx.strokeStyle = isCT ? 'rgba(91, 155, 213, 0.3)' : 'rgba(255, 107, 107, 0.3)'; // 반투명 경로
-                        ctx.lineWidth = 1;
+                        
+                        // 경로를 더 명확하게 표시 (투명도 증가 및 선 두께 증가)
+                        ctx.strokeStyle = isCT ? 'rgba(91, 155, 213, 0.6)' : 'rgba(255, 107, 107, 0.6)'; // 0.3 -> 0.6로 증가
+                        ctx.lineWidth = 2; // 1 -> 2로 증가
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
                         ctx.beginPath();
                         
+                        let firstPoint = true;
                         for (let i = 0; i < positions.length; i += 3) {
                             const x = offsetX + (positions[i] - pathMinX) * scale;
                             const y = offsetY + (positions[i + 2] - pathMinZ) * scale; // Three.js는 [X, Z, Y] 순서
                             
-                            if (i === 0) {
+                            if (firstPoint) {
                                 ctx.moveTo(x, y);
+                                firstPoint = false;
                             } else {
                                 ctx.lineTo(x, y);
                             }
@@ -5446,13 +5651,42 @@ Three.js · PapaParse · Pure JavaScript`
                     });
                 }
                 
+                // 현재 틱까지의 플레이어 경로를 시간순으로 표시 (과거 경로는 더 투명하게)
+                // 성능 최적화: 모든 틱을 렌더링하지 않고 샘플링
+                if (this.data && this.data.positions && this.currentTick > 0) {
+                    const sampleInterval = Math.max(1, Math.floor(this.currentTick / 200)); // 최대 200개 포인트만 표시
+                    
+                    // 각 틱별로 플레이어 경로를 시간에 따라 그리기 (샘플링)
+                    for (let tickIdx = 0; tickIdx <= this.currentTick; tickIdx += sampleInterval) {
+                        if (tickIdx >= this.data.positions.length) break;
+                        
+                        const tickData = this.data.positions[tickIdx];
+                        if (!tickData || !tickData.players) continue;
+                        
+                        // 시간에 따른 투명도 계산 (최근 틱일수록 더 진하게)
+                        const timeRatio = tickIdx / Math.max(1, this.currentTick);
+                        const alpha = 0.15 + (timeRatio * 0.35); // 0.15 ~ 0.5 범위
+                        
+                        tickData.players.forEach(player => {
+                            if (!player.position || !Array.isArray(player.position)) return;
+                            
+                            const isCT = !player.name.startsWith('-');
+                            const x = offsetX + (player.position[0] - pathMinX) * scale;
+                            const y = offsetY + (player.position[2] - pathMinZ) * scale;
+                            
+                            // 과거 위치를 작은 점으로 표시
+                            ctx.fillStyle = isCT ? `rgba(91, 155, 213, ${alpha})` : `rgba(255, 107, 107, ${alpha})`;
+                            ctx.beginPath();
+                            ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+                }
+                
                 // 현재 틱의 플레이어 표시 (큰 점으로)
                 if (this.data && this.data.positions && this.currentTick < this.data.positions.length) {
                     const tickData = this.data.positions[this.currentTick];
                     if (tickData && tickData.players) {
-                        const offsetX = (minimapCanvas.width - bounds.width * scale) / 2;
-                        const offsetY = (minimapCanvas.height - bounds.depth * scale) / 2;
-                        
                         tickData.players.forEach(player => {
                             if (!player.position || !Array.isArray(player.position)) return;
                             
@@ -5461,15 +5695,25 @@ Three.js · PapaParse · Pure JavaScript`
                             
                             // 플레이어 위치를 더 크고 명확하게 표시
                             const isCT = !player.name.startsWith('-');
+                            
+                            // 외곽선 먼저 그리기 (더 크게)
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.arc(x, y, 6, 0, Math.PI * 2);
+                            ctx.stroke();
+                            
+                            // 플레이어 점 그리기
                             ctx.fillStyle = isCT ? '#5b9bd5' : '#ff6b6b';
                             ctx.beginPath();
-                            ctx.arc(x, y, 4, 0, Math.PI * 2); // 3 -> 4로 크기 증가
+                            ctx.arc(x, y, 5, 0, Math.PI * 2);
                             ctx.fill();
                             
-                            // 외곽선 추가
-                            ctx.strokeStyle = '#ffffff';
-                            ctx.lineWidth = 1;
-                            ctx.stroke();
+                            // 내부 하이라이트
+                            ctx.fillStyle = '#ffffff';
+                            ctx.beginPath();
+                            ctx.arc(x, y, 2, 0, Math.PI * 2);
+                            ctx.fill();
                         });
                     }
                 }
@@ -6027,30 +6271,29 @@ Three.js · PapaParse · Pure JavaScript`
                                         }
                                     }
                                     
-                                    // X, Z 범위에 맞춰서 카메라 거리 계산 (2D 뷰)
-                                    if (minX !== Infinity && minZ !== Infinity) {
-                                        const width = Math.max(maxX - minX, 100);
-                                        const depth = Math.max(maxZ - minZ, 100);
-                                        const maxDim = Math.max(width, depth);
-                                        
-                                        // 2D 뷰에서 위에서 내려다보는 각도로 적절한 거리 계산
-                                        const fov = this.camera.fov * (Math.PI / 180);
-                                        const aspect = this.camera.aspect;
-                                        const distanceX = (width / 2) / Math.tan(fov / 2) / aspect;
-                                        const distanceZ = (depth / 2) / Math.tan(fov / 2);
-                                        this.cameraDistance = Math.max(distanceX, distanceZ) * 1.2; // 20% 여유 공간
-                                    } else {
-                                        // 플레이어가 없으면 기본 거리
-                                        const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
-                                        this.cameraDistance = Math.max(500, Math.min(5000, mapSize * 0.1));
+                                    // 수동 줌 조정이 없을 때만 자동으로 카메라 거리 계산
+                                    if (!this.manualZoomInFollow) {
+                                        // X, Z 범위에 맞춰서 카메라 거리 계산 (2D 뷰)
+                                        if (minX !== Infinity && minZ !== Infinity) {
+                                            const width = Math.max(maxX - minX, 100);
+                                            const depth = Math.max(maxZ - minZ, 100);
+                                            const maxDim = Math.max(width, depth);
+                                            
+                                            // 2D 뷰에서 위에서 내려다보는 각도로 적절한 거리 계산
+                                            const fov = this.camera.fov * (Math.PI / 180);
+                                            const aspect = this.camera.aspect;
+                                            const distanceX = (width / 2) / Math.tan(fov / 2) / aspect;
+                                            const distanceZ = (depth / 2) / Math.tan(fov / 2);
+                                            this.cameraDistance = Math.max(distanceX, distanceZ) * 1.2; // 20% 여유 공간
+                                        } else {
+                                            // 플레이어가 없으면 기본 거리
+                                            const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
+                                            this.cameraDistance = Math.max(500, Math.min(5000, mapSize * 0.1));
+                                        }
                                     }
                                     
-                                    // 패닝 오프셋 초기화 (Follow 모드에서는 패닝 사용 안 함)
-                                    if (this.panOffset) {
-                                        this.panOffset.x = 0;
-                                        this.panOffset.y = 0;
-                                        this.panOffset.z = 0;
-                                    }
+                                    // 패닝 오프셋은 유지 (Shift로 패닝 가능하도록)
+                                    // Follow 모드 시작 시에만 초기화
                                 }
                             }
                         }

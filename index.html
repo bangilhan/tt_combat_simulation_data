@@ -2697,17 +2697,8 @@ Three.js · PapaParse · Pure JavaScript`
                     this.showInvestigate();
                     
                     // 시뮬레이션 렌더링 초기화
-                    this.currentTick = 0; // 초기 틱 설정
-                    this.initialRenderDone = false; // 초기 렌더링 플래그 리셋
                     setTimeout(() => {
-                        console.log('초기 렌더링 시작:', { 
-                            positionsLength: this.data.positions.length, 
-                            currentTick: this.currentTick,
-                            firstTickData: this.data.positions[0],
-                            playersInFirstTick: this.data.positions[0]?.players?.length || 0
-                        });
-                        // 초기 렌더링은 animate 함수에서 처리하도록 플래그만 리셋
-                        this.initialRenderDone = false;
+                        this.renderTick(0);
                         // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
                         const container = document.getElementById('canvas-container');
                         if (container && this.renderer) {
@@ -5368,16 +5359,6 @@ Three.js · PapaParse · Pure JavaScript`
 
                 if (this.updateCamera) {
                     this.updateCamera();
-                }
-
-                // 데이터가 로드되었지만 아직 렌더링되지 않은 경우 초기 렌더링
-                if (this.data && this.data.positions && this.data.positions.length > 0) {
-                    // 재생 중이 아닐 때도 현재 틱을 렌더링 (정지 상태에서도 보이도록)
-                    if (!this.isPlaying && !this.initialRenderDone) {
-                        this.renderTick(this.currentTick);
-                        this.updateTimeDisplay();
-                        this.initialRenderDone = true;
-                    }
                 }
 
                 if (this.isPlaying && this.data) {

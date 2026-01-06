@@ -5041,83 +5041,21 @@ Three.js · PapaParse · Pure JavaScript`
             }
 
             renderTick(tickIndex) {
-                if (!this.data || !this.data.positions) {
-                    console.warn('renderTick: data 또는 positions가 없습니다', { hasData: !!this.data, hasPositions: !!(this.data && this.data.positions) });
-                    return;
-                }
+                if (!this.data || !this.data.positions) return;
 
                 const tickData = this.data.positions[tickIndex];
-                if (!tickData) {
-                    console.warn('renderTick: tickData가 없습니다', { tickIndex, totalPositions: this.data.positions.length });
-                    return;
-                }
-
-                if (!tickData.players || tickData.players.length === 0) {
-                    console.warn('renderTick: players가 비어있습니다', { tickIndex, tick: tickData.tick, game_time: tickData.game_time });
-                    // 플레이어가 없어도 기존 오브젝트는 제거
-                    if (this.playerObjects) {
-                        this.playerObjects.forEach(obj => this.scene.remove(obj));
-                        this.playerObjects.clear();
-                    }
-                    if (this.playerLabels) {
-                        this.playerLabels.forEach(obj => this.scene.remove(obj));
-                        this.playerLabels.clear();
-                    }
-                    return;
-                }
-
-                console.log('renderTick:', { 
-                    tickIndex, 
-                    players: tickData.players.length, 
-                    tick: tickData.tick,
-                    game_time: tickData.game_time,
-                    firstPlayer: tickData.players[0] ? {
-                        name: tickData.players[0].name,
-                        position: tickData.players[0].position,
-                        positionArray: Array.isArray(tickData.players[0].position)
-                    } : null
-                });
+                if (!tickData) return;
 
                 // 기존 오브젝트 제거
-                if (this.playerObjects) {
-                    this.playerObjects.forEach(obj => this.scene.remove(obj));
-                    this.playerObjects.clear();
-                }
-                if (this.playerLabels) {
-                    this.playerLabels.forEach(obj => this.scene.remove(obj));
-                    this.playerLabels.clear();
-                }
+                this.playerObjects.forEach(obj => this.scene.remove(obj));
+                this.playerLabels.forEach(obj => this.scene.remove(obj));
+                this.playerObjects.clear();
+                this.playerLabels.clear();
 
                 // 플레이어 렌더링
                 for (let i = 0; i < tickData.players.length; i++) {
                     const player = tickData.players[i];
-                    
-                    // 플레이어 위치 데이터 검증
-                    if (!player.position || !Array.isArray(player.position) || player.position.length < 3) {
-                        console.warn('플레이어 위치 데이터가 유효하지 않습니다:', { 
-                            playerName: player.name, 
-                            position: player.position 
-                        });
-                        continue;
-                    }
-                    
-                    const posX = player.position[0];
-                    const posY = player.position[1];
-                    const posZ = player.position[2];
-                    
-                    // 위치 값 검증
-                    if (Number.isNaN(posX) || Number.isNaN(posY) || Number.isNaN(posZ)) {
-                        console.warn('플레이어 위치에 NaN이 있습니다:', { 
-                            playerName: player.name, 
-                            position: player.position 
-                        });
-                        continue;
-                    }
-                    
-                    // 새 데이터에는 team 정보가 없으므로 player_id를 기반으로 색상 구분
-                    // player_id가 음수면 한 팀, 양수면 다른 팀으로 가정
-                    const playerIdNum = parseInt(player.name) || 0;
-                    const isCT = player.team === 'CT' || (player.team === '' && playerIdNum < 0);
+                    const isCT = player.team === 'CT';
                     const color = isCT ? 0x5b9bd5 : 0xff6b6b;
                     
                     // CT는 원형, T는 삼각형
@@ -5136,20 +5074,9 @@ Three.js · PapaParse · Pure JavaScript`
                     });
                     
                     const mesh = new THREE.Mesh(geometry, material);
-                    // Three.js 좌표계: X, Z, Y (position은 [X, Z, Y] 형식)
-                    mesh.position.set(posX, posZ, posY);
+                    mesh.position.set(player.position[0], player.position[2], player.position[1]);
                     this.scene.add(mesh);
                     this.playerObjects.set(player.name, mesh);
-                    
-                    // 첫 번째 플레이어 위치 로그 (디버깅용)
-                    if (i === 0) {
-                        console.log('첫 번째 플레이어 렌더링:', {
-                            name: player.name,
-                            position: player.position,
-                            meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-                            cameraPosition: { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }
-                        });
-                    }
 
                     // 플레이어 ID 라벨 (크게)
                     // 현재 틱에 킬 이벤트가 있고 이 플레이어가 공격자인지 확인
@@ -5200,9 +5127,9 @@ Three.js · PapaParse · Pure JavaScript`
                         ctx.fillText(labelText, canvas.width / 2, yPos);
                     } else {
                         // 일반 플레이어는 기존대로
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 36px Arial';
-                    ctx.textAlign = 'center';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 36px Arial';
+                        ctx.textAlign = 'center';
                         ctx.fillText(player.name, canvas.width / 2, yPos);
                     }
                     

@@ -924,12 +924,13 @@
                     offsetX: 0,
                     offsetY: 0,
                     textureRotation: 0,
-                    scaleX: 1,
-                    scaleZ: 1,
+                    scaleX: 1.0,
+                    scaleZ: 1.0,
                     worldOffsetX: 0,
                     worldOffsetZ: 0,
                     worldOffsetY: 0,
-                    worldRotation: 0
+                    worldRotation: 0,
+                    flipY: false
                 };
                 this.followPlayer = false;
                 
@@ -3453,10 +3454,15 @@ Three.js · PapaParse · Pure JavaScript`
                 const cfg = this.mapImageSettings;
                 texture.wrapS = THREE.ClampToEdgeWrapping;
                 texture.wrapT = THREE.ClampToEdgeWrapping;
+                if (cfg.flipY !== undefined) {
+                    texture.flipY = cfg.flipY;
+                }
                 texture.repeat.set(cfg.repeatX ?? 1, cfg.repeatY ?? 1);
                 texture.offset.set(cfg.offsetX ?? 0, cfg.offsetY ?? 0);
                 texture.rotation = cfg.textureRotation ?? 0;
                 texture.center.set(0.5, 0.5);
+                texture.encoding = THREE.sRGBEncoding;
+                texture.needsUpdate = true;
             }
             
             renderMapImage() {
@@ -3484,13 +3490,13 @@ Three.js · PapaParse · Pure JavaScript`
                 // 평면 지오메트리 생성 (기본 Y-Z 평면)
                 const planeGeometry = new THREE.PlaneGeometry(mapWidth, mapDepth);
                 
-                // 투명도 (기본값 80%)
-                const opacity = 0.8;
+                // 투명도 설정
+                const opacity = cfg.opacity !== undefined ? cfg.opacity : 0.9;
                 
                 // 머티리얼 생성
                 const material = new THREE.MeshBasicMaterial({
                     map: this.mapImageTexture,
-                    transparent: true,
+                    transparent: opacity < 1.0,
                     opacity: opacity,
                     side: THREE.DoubleSide
                 });

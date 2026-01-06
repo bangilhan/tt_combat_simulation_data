@@ -5032,10 +5032,43 @@ Three.js · PapaParse · Pure JavaScript`
             }
 
             renderTick(tickIndex) {
-                if (!this.data || !this.data.positions) return;
+                if (!this.data || !this.data.positions) {
+                    console.warn('renderTick: data 또는 positions가 없습니다');
+                    return;
+                }
 
                 const tickData = this.data.positions[tickIndex];
-                if (!tickData) return;
+                if (!tickData) {
+                    console.warn('renderTick: tickData가 없습니다', { tickIndex, totalPositions: this.data.positions.length });
+                    return;
+                }
+
+                if (!tickData.players || tickData.players.length === 0) {
+                    console.warn('renderTick: players가 비어있습니다', { tickIndex, tick: tickData.tick });
+                    // 플레이어가 없어도 기존 오브젝트는 제거
+                    this.playerObjects.forEach(obj => this.scene.remove(obj));
+                    this.playerLabels.forEach(obj => this.scene.remove(obj));
+                    this.playerObjects.clear();
+                    this.playerLabels.clear();
+                    return;
+                }
+
+                // 디버깅: 첫 번째 틱에서 모든 플레이어의 X, Y, Z 값 출력
+                if (tickIndex === 0) {
+                    console.log('=== 첫 번째 틱 플레이어 좌표 ===');
+                    console.log('총 플레이어 수:', tickData.players.length);
+                    tickData.players.forEach((player, idx) => {
+                        console.log(`플레이어 ${idx + 1} (${player.name}):`, {
+                            position: player.position,
+                            X: player.position[0],
+                            Y: player.position[1], 
+                            Z: player.position[2],
+                            ThreeJS_X: player.position[0],
+                            ThreeJS_Y: player.position[2],
+                            ThreeJS_Z: player.position[1]
+                        });
+                    });
+                }
 
                 // 기존 오브젝트 제거
                 this.playerObjects.forEach(obj => this.scene.remove(obj));
@@ -5046,6 +5079,22 @@ Three.js · PapaParse · Pure JavaScript`
                 // 플레이어 렌더링
                 for (let i = 0; i < tickData.players.length; i++) {
                     const player = tickData.players[i];
+                    
+                    // 위치 데이터 검증
+                    if (!player.position || !Array.isArray(player.position) || player.position.length < 3) {
+                        console.error('플레이어 위치 데이터 오류:', player.name, player.position);
+                        continue;
+                    }
+                    
+                    const posX = player.position[0];
+                    const posY = player.position[1];
+                    const posZ = player.position[2];
+                    
+                    if (Number.isNaN(posX) || Number.isNaN(posY) || Number.isNaN(posZ)) {
+                        console.error('플레이어 위치에 NaN:', player.name, { posX, posY, posZ });
+                        continue;
+                    }
+                    
                     const isCT = player.team === 'CT';
                     const color = isCT ? 0x5b9bd5 : 0xff6b6b;
                     
@@ -5065,9 +5114,20 @@ Three.js · PapaParse · Pure JavaScript`
                     });
                     
                     const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.set(player.position[0], player.position[2], player.position[1]);
+                    // Three.js 좌표계: position은 [X, Z, Y] 형식이므로 [0], [2], [1] 순서로 설정
+                    mesh.position.set(posX, posZ, posY);
                     this.scene.add(mesh);
                     this.playerObjects.set(player.name, mesh);
+                    
+                    // 디버깅: 첫 번째 플레이어의 실제 렌더링 위치 출력
+                    if (i === 0 && tickIndex === 0) {
+                        console.log('첫 번째 플레이어 렌더링 위치:', {
+                            name: player.name,
+                            position_array: player.position,
+                            mesh_position: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+                            camera_position: { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }
+                        });
+                    }
 
                     // 플레이어 ID 라벨 (크게)
                     // 현재 틱에 킬 이벤트가 있고 이 플레이어가 공격자인지 확인

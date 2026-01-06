@@ -2222,39 +2222,39 @@ Three.js · PapaParse · Pure JavaScript`
                             // 새로운 데이터 스키마: tick 필수
                             const tickStr = row.tick && row.tick.trim ? row.tick.trim() : (row.tick !== undefined && row.tick !== null ? String(row.tick) : null);
                             if (!tickStr || tickStr === '') continue;
-                        
-                        const tick = parseInt(tickStr);
-                        if (Number.isNaN(tick)) return;
-                        
-                        // timestamp를 초 단위로 변환 (ms -> s)
-                        const timestampMs = parseFloat(row.timestamp || 0);
-                        const gameTime = timestampMs > 0 ? timestampMs / 1000 : 0;
-                        
-                        // tick이 변경되면 이전 tick 데이터 저장
-                        if (currentTick !== tick && currentTick !== null && tickData.players && tickData.players.length) {
-                            positions.push({
-                                tick: currentTick,
-                                game_time: tickData.game_time || 0,
-                                players: tickData.players || []
-                            });
-                            tickData = { players: [] };
-                        }
-                        
-                        currentTick = tick;
-                        tickData.game_time = gameTime;
-                        
-                        // 플레이어 위치 데이터 처리 (새 스키마: player_id, X, Y, Z)
-                        const x = row.X !== undefined && row.X !== null ? String(row.X).trim() : null;
-                        const y = row.Y !== undefined && row.Y !== null ? String(row.Y).trim() : null;
-                        const z = row.Z !== undefined && row.Z !== null ? String(row.Z).trim() : null;
-                        const playerId = row.player_id !== undefined && row.player_id !== null ? String(row.player_id).trim() : null;
-                        
-                        if (x && y && z && playerId && playerId !== '') {
-                            const posX = parseFloat(x);
-                            const posY = parseFloat(y);
-                            const posZ = parseFloat(z);
                             
-                            if (!Number.isNaN(posX) && !Number.isNaN(posY) && !Number.isNaN(posZ)) {
+                            const tick = parseInt(tickStr);
+                            if (Number.isNaN(tick)) continue;
+                            
+                            // timestamp를 초 단위로 변환 (ms -> s)
+                            const timestampMs = parseFloat(row.timestamp || 0);
+                            const gameTime = timestampMs > 0 ? timestampMs / 1000 : 0;
+                            
+                            // tick이 변경되면 이전 tick 데이터 저장
+                            if (currentTick !== tick && currentTick !== null && tickData.players && tickData.players.length) {
+                                positions.push({
+                                    tick: currentTick,
+                                    game_time: tickData.game_time || 0,
+                                    players: tickData.players || []
+                                });
+                                tickData = { players: [] };
+                            }
+                            
+                            currentTick = tick;
+                            tickData.game_time = gameTime;
+                            
+                            // 플레이어 위치 데이터 처리 (새 스키마: player_id, X, Y, Z)
+                            const x = row.X !== undefined && row.X !== null ? String(row.X).trim() : null;
+                            const y = row.Y !== undefined && row.Y !== null ? String(row.Y).trim() : null;
+                            const z = row.Z !== undefined && row.Z !== null ? String(row.Z).trim() : null;
+                            const playerId = row.player_id !== undefined && row.player_id !== null ? String(row.player_id).trim() : null;
+                            
+                            if (x && y && z && playerId && playerId !== '') {
+                                const posX = parseFloat(x);
+                                const posY = parseFloat(y);
+                                const posZ = parseFloat(z);
+                                
+                                if (!Number.isNaN(posX) && !Number.isNaN(posY) && !Number.isNaN(posZ)) {
                                 // 맵 경계 직접 업데이트
                                 if (posX < minX) minX = posX;
                                 if (posX > maxX) maxX = posX;
@@ -2311,105 +2311,110 @@ Three.js · PapaParse · Pure JavaScript`
                             }
                         }
                         
-                        // 이벤트 처리 (새 스키마: event_type, event_src_player_id, event_trg_player_id)
-                        const eventType = row.event_type !== undefined && row.event_type !== null ? parseInt(String(row.event_type)) : null;
-                        if (!Number.isNaN(eventType) && eventType > 0) {
-                            // event_type: 1:fire, 2:hit, 3:kill
-                            let eventTypeStr = '';
-                            if (eventType === 1) eventTypeStr = 'fire';
-                            else if (eventType === 2) eventTypeStr = 'hit';
-                            else if (eventType === 3) eventTypeStr = 'kill';
-                            
-                            if (eventTypeStr) {
-                                const attackerId = row.event_src_player_id !== undefined && row.event_src_player_id !== null ? 
-                                    String(row.event_src_player_id).trim() : null;
-                                const victimId = row.event_trg_player_id !== undefined && row.event_trg_player_id !== null ? 
-                                    String(row.event_trg_player_id).trim() : null;
+                            // 이벤트 처리 (새 스키마: event_type, event_src_player_id, event_trg_player_id)
+                            const eventType = row.event_type !== undefined && row.event_type !== null ? parseInt(String(row.event_type)) : null;
+                            if (!Number.isNaN(eventType) && eventType > 0) {
+                                // event_type: 1:fire, 2:hit, 3:kill
+                                let eventTypeStr = '';
+                                if (eventType === 1) eventTypeStr = 'fire';
+                                else if (eventType === 2) eventTypeStr = 'hit';
+                                else if (eventType === 3) eventTypeStr = 'kill';
                                 
-                                // 킬 이벤트 중복 체크
-                                let shouldAddEvent = true;
-                                if (eventType === 3 && attackerId && victimId) {
-                                    const existingKill = events.find(e => 
-                                        e.tick === tick && 
-                                        e.event_type_lower === 'kill' &&
-                                        e.attacker && e.attacker.name === attackerId &&
-                                        e.victim && e.victim.name === victimId
-                                    );
-                                    if (existingKill) {
-                                        shouldAddEvent = false;
-                                    }
-                                }
-                                
-                                if (shouldAddEvent) {
-                                    // 공격자 위치 찾기 (같은 tick의 플레이어 데이터에서)
-                                    let attackerPos = [null, null, null];
-                                    if (attackerId) {
-                                        const attackerPlayer = tickData.players.find(p => p.name === attackerId);
-                                        if (attackerPlayer && attackerPlayer.position) {
-                                            attackerPos = attackerPlayer.position;
+                                if (eventTypeStr) {
+                                    const attackerId = row.event_src_player_id !== undefined && row.event_src_player_id !== null ? 
+                                        String(row.event_src_player_id).trim() : null;
+                                    const victimId = row.event_trg_player_id !== undefined && row.event_trg_player_id !== null ? 
+                                        String(row.event_trg_player_id).trim() : null;
+                                    
+                                    // 킬 이벤트 중복 체크 (최근 이벤트만 확인하여 성능 개선)
+                                    let shouldAddEvent = true;
+                                    if (eventType === 3 && attackerId && victimId) {
+                                        // 최근 10개 이벤트만 확인 (스택 오버플로우 방지)
+                                        const recentEvents = events.slice(-10);
+                                        const existingKill = recentEvents.find(e => 
+                                            e.tick === tick && 
+                                            e.event_type_lower === 'kill' &&
+                                            e.attacker && e.attacker.name === attackerId &&
+                                            e.victim && e.victim.name === victimId
+                                        );
+                                        if (existingKill) {
+                                            shouldAddEvent = false;
                                         }
                                     }
                                     
-                                    // 피격자 위치 찾기
-                                    let victimPos = [null, null, null];
-                                    if (victimId) {
-                                        const victimPlayer = tickData.players.find(p => p.name === victimId);
-                                        if (victimPlayer && victimPlayer.position) {
-                                            victimPos = victimPlayer.position;
+                                    if (shouldAddEvent) {
+                                        // 공격자 위치 찾기 (같은 tick의 플레이어 데이터에서)
+                                        let attackerPos = [null, null, null];
+                                        if (attackerId) {
+                                            const attackerPlayer = tickData.players.find(p => p.name === attackerId);
+                                            if (attackerPlayer && attackerPlayer.position) {
+                                                attackerPos = attackerPlayer.position;
+                                            }
                                         }
-                                    }
-                                    
-                                    // weapon 정보
-                                    const eventWeaponId = row.event_src_id !== undefined && row.event_src_id !== null ? 
-                                        parseInt(String(row.event_src_id)) : null;
-                                    
-                                    // headshot 정보
-                                    const headshot = row.head_shot_yn !== undefined && row.head_shot_yn !== null ? 
-                                        (parseInt(String(row.head_shot_yn)) === 1) : false;
-                                    
-                                    events.push({
-                                        tick: tick,
-                                        game_time: gameTime,
-                                        event_type: eventTypeStr,
-                                        event_type_lower: eventTypeStr.toLowerCase(),
-                                        attacker: {
-                                            name: attackerId,
-                                            team: '',
-                                            position: attackerPos,
-                                            weapon: !Number.isNaN(eventWeaponId) ? eventWeaponId : null
-                                        },
-                                        victim: {
-                                            name: victimId,
-                                            team: '',
-                                            position: victimPos
-                                        },
-                                        weapon: !Number.isNaN(eventWeaponId) ? eventWeaponId : null,
-                                        headshot: headshot
-                                    });
-                                    
-                                    // 킬 이벤트의 공격자 Aim 데이터 수집
-                                    if (eventType === 3 && attackerId) {
-                                        const attackerPlayer = tickData.players.find(p => p.name === attackerId);
-                                        if (attackerPlayer && attackerPlayer.yaw !== null && attackerPlayer.pitch !== null) {
-                                            if (!aimIndex.has(attackerId)) aimIndex.set(attackerId, []);
-                                            const existingKill = aimIndex.get(attackerId).find(a => 
-                                                a.type === 'kill' && a.tick === tick && Math.abs(a.time - gameTime) < 0.01
-                                            );
-                                            if (!existingKill) {
-                                                aimIndex.get(attackerId).push({ 
-                                                    yaw: attackerPlayer.yaw, 
-                                                    pitch: attackerPlayer.pitch, 
-                                                    time: gameTime, 
-                                                    tick: tick, 
-                                                    type: 'kill',
-                                                    _temp: true
-                                                });
+                                        
+                                        // 피격자 위치 찾기
+                                        let victimPos = [null, null, null];
+                                        if (victimId) {
+                                            const victimPlayer = tickData.players.find(p => p.name === victimId);
+                                            if (victimPlayer && victimPlayer.position) {
+                                                victimPos = victimPlayer.position;
+                                            }
+                                        }
+                                        
+                                        // weapon 정보
+                                        const eventWeaponId = row.event_src_id !== undefined && row.event_src_id !== null ? 
+                                            parseInt(String(row.event_src_id)) : null;
+                                        
+                                        // headshot 정보
+                                        const headshot = row.head_shot_yn !== undefined && row.head_shot_yn !== null ? 
+                                            (parseInt(String(row.head_shot_yn)) === 1) : false;
+                                        
+                                        events.push({
+                                            tick: tick,
+                                            game_time: gameTime,
+                                            event_type: eventTypeStr,
+                                            event_type_lower: eventTypeStr.toLowerCase(),
+                                            attacker: {
+                                                name: attackerId,
+                                                team: '',
+                                                position: attackerPos,
+                                                weapon: !Number.isNaN(eventWeaponId) ? eventWeaponId : null
+                                            },
+                                            victim: {
+                                                name: victimId,
+                                                team: '',
+                                                position: victimPos
+                                            },
+                                            weapon: !Number.isNaN(eventWeaponId) ? eventWeaponId : null,
+                                            headshot: headshot
+                                        });
+                                        
+                                        // 킬 이벤트의 공격자 Aim 데이터 수집
+                                        if (eventType === 3 && attackerId) {
+                                            const attackerPlayer = tickData.players.find(p => p.name === attackerId);
+                                            if (attackerPlayer && attackerPlayer.yaw !== null && attackerPlayer.pitch !== null) {
+                                                if (!aimIndex.has(attackerId)) aimIndex.set(attackerId, []);
+                                                const aimArray = aimIndex.get(attackerId);
+                                                // 최근 10개만 확인하여 성능 개선
+                                                const recentAims = aimArray.slice(-10);
+                                                const existingKill = recentAims.find(a => 
+                                                    a.type === 'kill' && a.tick === tick && Math.abs(a.time - gameTime) < 0.01
+                                                );
+                                                if (!existingKill) {
+                                                    aimArray.push({ 
+                                                        yaw: attackerPlayer.yaw, 
+                                                        pitch: attackerPlayer.pitch, 
+                                                        time: gameTime, 
+                                                        tick: tick, 
+                                                        type: 'kill',
+                                                        _temp: true
+                                                    });
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
                         }
                         
                         // 진행 상황 업데이트 및 UI 차단 방지

@@ -5989,15 +5989,51 @@ Three.js · PapaParse · Pure JavaScript`
                             if (tickData && tickData.players) {
                                 const player = tickData.players.find(p => p.name === this.selectedPlayer);
                                 if (player && player.position && Array.isArray(player.position)) {
-                                    // 플레이어 위치를 카메라 타겟으로 설정
+                                    // 플레이어 위치를 카메라 타겟으로 설정 (2D 뷰: X, Z만 사용, Y는 높이)
                                     this.cameraTarget = { 
-                                        x: player.position[0], 
-                                        y: player.position[2], // Three.js Y축
+                                        x: player.position[0], // X
+                                        y: player.position[2], // Three.js Y축 (높이) - 2D 뷰에서는 고정
                                         z: player.position[1]  // Three.js Z축
                                     };
-                                    // Follow 모드일 때 카메라 거리를 적절히 조정
-                                    const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
-                                    this.cameraDistance = Math.max(500, Math.min(5000, mapSize * 0.1)); // 맵 크기의 10% 정도 거리
+                                    
+                                    // 2D 뷰: 현재 틱의 모든 플레이어 X, Z 범위를 계산하여 적절한 거리 설정
+                                    let minX = Infinity, maxX = -Infinity;
+                                    let minZ = Infinity, maxZ = -Infinity;
+                                    
+                                    for (let i = 0; i < tickData.players.length; i++) {
+                                        const p = tickData.players[i];
+                                        if (p.position && Array.isArray(p.position)) {
+                                            const x = p.position[0];
+                                            const z = p.position[1]; // Three.js Z축
+                                            if (!Number.isNaN(x)) {
+                                                minX = Math.min(minX, x);
+                                                maxX = Math.max(maxX, x);
+                                            }
+                                            if (!Number.isNaN(z)) {
+                                                minZ = Math.min(minZ, z);
+                                                maxZ = Math.max(maxZ, z);
+                                            }
+                                        }
+                                    }
+                                    
+                                    // X, Z 범위에 맞춰서 카메라 거리 계산 (2D 뷰)
+                                    if (minX !== Infinity && minZ !== Infinity) {
+                                        const width = Math.max(maxX - minX, 100);
+                                        const depth = Math.max(maxZ - minZ, 100);
+                                        const maxDim = Math.max(width, depth);
+                                        
+                                        // 2D 뷰에서 위에서 내려다보는 각도로 적절한 거리 계산
+                                        const fov = this.camera.fov * (Math.PI / 180);
+                                        const aspect = this.camera.aspect;
+                                        const distanceX = (width / 2) / Math.tan(fov / 2) / aspect;
+                                        const distanceZ = (depth / 2) / Math.tan(fov / 2);
+                                        this.cameraDistance = Math.max(distanceX, distanceZ) * 1.2; // 20% 여유 공간
+                                    } else {
+                                        // 플레이어가 없으면 기본 거리
+                                        const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
+                                        this.cameraDistance = Math.max(500, Math.min(5000, mapSize * 0.1));
+                                    }
+                                    
                                     // 패닝 오프셋 초기화 (Follow 모드에서는 패닝 사용 안 함)
                                     if (this.panOffset) {
                                         this.panOffset.x = 0;

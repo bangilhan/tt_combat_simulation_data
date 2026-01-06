@@ -2624,6 +2624,37 @@ Three.js · PapaParse · Pure JavaScript`
                     this.analyzeAndRenderPaths();
                     this.populateKillPicker();
                     this.populatePlayerPicker();
+                    
+                    // POC: CSV 로드 후 자동으로 맵 이미지 로드
+                    // 맵 감지와 상관없이 항상 mapImageSettings 이미지 로드 시도
+                    if (this.mapImageSettings && this.mapImageSettings.imagePath) {
+                        this.loadMapImageFromPath(this.mapImageSettings.imagePath);
+                    }
+                    
+                    // 파일 로드 후 3D 시뮬레이션 분석 탭으로 자동 전환
+                    this.showInvestigate();
+                    
+                    // 시뮬레이션 렌더링 초기화
+                    setTimeout(() => {
+                        this.renderTick(0);
+                        // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
+                        const container = document.getElementById('canvas-container');
+                        if (container && this.renderer) {
+                            const width = container.clientWidth;
+                            const height = container.clientHeight;
+                            if (width > 0 && height > 0) {
+                                this.camera.aspect = width / height;
+                                this.camera.updateProjectionMatrix();
+                                this.renderer.setSize(width, height);
+                            }
+                        }
+                    }, 100);
+                } catch (error) {
+                    console.error('processData 오류:', error);
+                    alert('데이터 처리 중 오류가 발생했습니다: ' + error.message);
+                    const loading = document.getElementById('loading');
+                    if (loading) loading.style.display = 'none';
+                }
             }
             
             /**
@@ -2726,38 +2757,6 @@ Three.js · PapaParse · Pure JavaScript`
                     input_device: inputDeviceDist,
                     character: characterDist
                 });
-            }
-                    
-                    // POC: CSV 로드 후 자동으로 맵 이미지 로드
-                    // 맵 감지와 상관없이 항상 mapImageSettings 이미지 로드 시도
-                    if (this.mapImageSettings && this.mapImageSettings.imagePath) {
-                        this.loadMapImageFromPath(this.mapImageSettings.imagePath);
-                    }
-                    
-                    // 파일 로드 후 3D 시뮬레이션 분석 탭으로 자동 전환
-                    this.showInvestigate();
-                    
-                    // 시뮬레이션 렌더링 초기화
-                    setTimeout(() => {
-                    this.renderTick(0);
-                        // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
-                        const container = document.getElementById('canvas-container');
-                        if (container && this.renderer) {
-                            const width = container.clientWidth;
-                            const height = container.clientHeight;
-                            if (width > 0 && height > 0) {
-                                this.camera.aspect = width / height;
-                                this.camera.updateProjectionMatrix();
-                                this.renderer.setSize(width, height);
-                            }
-                        }
-                    }, 100);
-                } catch (error) {
-                    console.error('processData 오류:', error);
-                    alert('데이터 처리 중 오류가 발생했습니다: ' + error.message);
-                    const loading = document.getElementById('loading');
-                    if (loading) loading.style.display = 'none';
-                }
             }
 
             renderAimTrace() {

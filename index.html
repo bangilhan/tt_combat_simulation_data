@@ -2447,6 +2447,17 @@ Three.js · PapaParse · Pure JavaScript`
                     // 맵 경계 계산 (이미 계산됨)
                     let detectedMapName = null;
                     if (minX !== Infinity && maxX !== -Infinity) {
+                        // 좌표 정규화를 위한 스케일 팩터 계산
+                        const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+                        // 목표 크기: 2000 단위로 정규화 (너무 크지 않게)
+                        const targetSize = 2000;
+                        const scaleFactor = maxDim > targetSize ? targetSize / maxDim : 1.0;
+                        
+                        // 정규화된 경계 계산
+                        const normalizedWidth = (maxX - minX) * scaleFactor;
+                        const normalizedHeight = (maxY - minY) * scaleFactor;
+                        const normalizedDepth = (maxZ - minZ) * scaleFactor;
+                        
                         this.mapBounds = {
                             minX: minX,
                             maxX: maxX,
@@ -2459,7 +2470,12 @@ Three.js · PapaParse · Pure JavaScript`
                             centerZ: (minZ + maxZ) / 2,
                             width: maxX - minX,
                             height: maxY - minY,
-                            depth: maxZ - minZ
+                            depth: maxZ - minZ,
+                            // 정규화 정보 추가
+                            scaleFactor: scaleFactor,
+                            normalizedWidth: normalizedWidth,
+                            normalizedHeight: normalizedHeight,
+                            normalizedDepth: normalizedDepth
                         };
                         
                         // 플레이어 위치 범위를 기반으로 맵 추론
@@ -4297,15 +4313,18 @@ Three.js · PapaParse · Pure JavaScript`
                 // 카메라 위치 조정 및 기본 거리 설정
                 // 좌표 정규화: 맵 크기에 따라 카메라 거리를 적절히 조정
                 const maxDim = Math.max(width, height, depth);
-                // 맵 크기에 비례하여 카메라 거리 조정 (너무 멀지 않게)
-                if (maxDim > 50000) {
-                    this.baseCameraDistance = maxDim * 0.5; // 매우 큰 맵: 50% 거리
-                } else if (maxDim > 20000) {
-                    this.baseCameraDistance = maxDim * 0.8; // 큰 맵: 80% 거리
-                } else if (maxDim > 10000) {
-                    this.baseCameraDistance = maxDim * 1.2; // 중간 맵: 120% 거리
+                // 정규화된 크기 사용 (더 일관된 카메라 거리)
+                const normalizedMaxDim = bounds.normalizedWidth ? 
+                    Math.max(bounds.normalizedWidth, bounds.normalizedHeight, bounds.normalizedDepth) : 
+                    maxDim;
+                
+                // 정규화된 크기 기준으로 카메라 거리 조정 (더 가깝게)
+                if (normalizedMaxDim > 3000) {
+                    this.baseCameraDistance = normalizedMaxDim * 0.8; // 큰 맵: 80% 거리
+                } else if (normalizedMaxDim > 1500) {
+                    this.baseCameraDistance = normalizedMaxDim * 1.0; // 중간 맵: 100% 거리
                 } else {
-                    this.baseCameraDistance = maxDim * 1.5; // 작은 맵: 150% 거리
+                    this.baseCameraDistance = normalizedMaxDim * 1.5; // 작은 맵: 150% 거리
                 }
                 this.cameraDistance = this.baseCameraDistance;
                 // 카메라를 맵 중심 위에서 내려다보는 각도로 설정

@@ -4503,6 +4503,17 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 // 키보드로 세밀한 줌 컨트롤 추가 (+, - 키)
                 document.addEventListener('keydown', (e) => {
+                    // Follow 모드일 때는 키보드 줌 비활성화
+                    if (this.followPlayer && this.selectedPlayer) {
+                        if (e.key === '+' || e.key === '=' || e.key === '-' || 
+                            (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
+                            (e.altKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
+                            (e.shiftKey && (e.key === '+' || e.key === '=' || e.key === '-'))) {
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+                    
                     // Ctrl + +/- : 매우 세밀한 줌
                     if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
                         this.cameraDistance -= 1;

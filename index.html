@@ -2703,10 +2703,11 @@ Three.js · PapaParse · Pure JavaScript`
                         console.log('초기 렌더링 시작:', { 
                             positionsLength: this.data.positions.length, 
                             currentTick: this.currentTick,
-                            firstTickData: this.data.positions[0]
+                            firstTickData: this.data.positions[0],
+                            playersInFirstTick: this.data.positions[0]?.players?.length || 0
                         });
-                        this.renderTick(this.currentTick);
-                        this.updateTimeDisplay();
+                        // 초기 렌더링은 animate 함수에서 처리하도록 플래그만 리셋
+                        this.initialRenderDone = false;
                         // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
                         const container = document.getElementById('canvas-container');
                         if (container && this.renderer) {

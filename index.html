@@ -907,13 +907,13 @@
     <!-- GitHub CSV 선택 팝업 -->
     <div id="csv-popup">
         <div id="csv-popup-content">
-            <h3>경로에서 확인되는 csv 파일</h3>
+            <h3>현재 경로에서 확인되는 csv 파일</h3>
             
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
-            <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <button id="csv-load-selected" style="flex: 1; padding: 12px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">선택한 파일 로드</button>
-                <button id="csv-popup-close" style="flex: 1; padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">닫기</button>
+            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: stretch;">
+                <button id="csv-load-selected" style="flex: 1; padding: 12px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">선택한 파일 로드</button>
+                <button id="csv-popup-close" style="flex: 1; padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">닫기</button>
             </div>
         </div>
     </div>
@@ -5457,6 +5457,25 @@ Three.js · PapaParse · Pure JavaScript`
                         shouldAdvance = delta >= baseInterval;
                     }
                     
+                    // 재생 중에는 항상 현재 틱을 렌더링 (shouldAdvance와 관계없이)
+                    if (this.currentTick < this.data.positions.length) {
+                        // Follow selected player if enabled
+                        if (this.followPlayer && this.selectedPlayer && this.playerIndex.has(this.selectedPlayer)) {
+                            const arr = this.playerIndex.get(this.selectedPlayer);
+                            const tick = this.data.positions[this.currentTick].tick;
+                            const entry = arr.find(e => e.tick === tick);
+                            if (entry) {
+                                this.cameraTarget = { x: entry.position[0], y: entry.position[2], z: entry.position[1] };
+                            }
+                        }
+                        this.renderTick(this.currentTick);
+                        this.updateTimeDisplay();
+                        // Aim trace 실시간 업데이트 (탭이 열려있을 때)
+                        const activeTabEl3 = document.querySelector('.tab-btn.active');
+                        const activeTab3 = activeTabEl3 ? activeTabEl3.getAttribute('data-tab') : null;
+                        if (activeTab3 === 'aim') this.renderAimTrace();
+                    }
+                    
                     if (shouldAdvance) {
                         this.currentTick += 1;
                         
@@ -5473,22 +5492,6 @@ Three.js · PapaParse · Pure JavaScript`
                             this.currentTick = this.data.positions.length - 1;
                             this.isPlaying = false;
                             document.getElementById('play-btn').textContent = '▶';
-                        } else {
-                            // Follow selected player if enabled
-                            if (this.followPlayer && this.selectedPlayer && this.playerIndex.has(this.selectedPlayer)) {
-                                const arr = this.playerIndex.get(this.selectedPlayer);
-                                const tick = this.data.positions[this.currentTick].tick;
-                                const entry = arr.find(e => e.tick === tick);
-                                if (entry) {
-                                    this.cameraTarget = { x: entry.position[0], y: entry.position[2], z: entry.position[1] };
-                                }
-                            }
-                            this.renderTick(this.currentTick);
-                            this.updateTimeDisplay();
-                            // Aim trace 실시간 업데이트 (탭이 열려있을 때)
-                            const activeTabEl3 = document.querySelector('.tab-btn.active');
-                            const activeTab3 = activeTabEl3 ? activeTabEl3.getAttribute('data-tab') : null;
-                            if (activeTab3 === 'aim') this.renderAimTrace();
                         }
                         this.lastUpdateTime = now;
                     }

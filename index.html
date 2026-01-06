@@ -4509,7 +4509,7 @@ Three.js · PapaParse · Pure JavaScript`
                         const deltaY = e.clientY - mouseY;
                         
                         // Shift 키 상태를 실시간으로 확인 (mousemove 중에도 변경 가능)
-                        const shouldPan = e.shiftKey || isPanning;
+                        const shouldPan = e.shiftKey;
                         
                         if (shouldPan) {
                             // 패닝 모드: 카메라를 평면으로 이동

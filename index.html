@@ -5540,11 +5540,44 @@ Three.js · PapaParse · Pure JavaScript`
                 }
                 
                 this.updateCamera();
-                console.log('Fit to View 완료:', {
-                    center: { x: centerX, y: centerZ, z: centerY },
-                    size: { width, height, depth },
-                    cameraDistance: this.cameraDistance
-                });
+                
+                // 로그 출력 (변수 스코프 확인)
+                if (bounds.pathWidth && bounds.pathDepth && bounds.pathHeight) {
+                    console.log('Fit to View 완료 (경로 경계 사용):', {
+                        center: { x: bounds.pathCenterX, y: bounds.pathCenterZ, z: bounds.pathCenterY },
+                        size: { width: bounds.pathWidth, height: bounds.pathHeight, depth: bounds.pathDepth },
+                        cameraDistance: this.cameraDistance
+                    });
+                } else {
+                    const tickData = this.data.positions[this.currentTick];
+                    if (tickData && tickData.players && tickData.players.length > 0) {
+                        let minX = Infinity, maxX = -Infinity;
+                        let minY = Infinity, maxY = -Infinity;
+                        let minZ = Infinity, maxZ = -Infinity;
+                        tickData.players.forEach(player => {
+                            if (!player.position || !Array.isArray(player.position)) return;
+                            const x = player.position[0];
+                            const y = player.position[1];
+                            const z = player.position[2];
+                            if (!Number.isNaN(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+                            if (!Number.isNaN(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+                            if (!Number.isNaN(z)) { minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
+                        });
+                        if (minX !== Infinity) {
+                            console.log('Fit to View 완료 (현재 틱 플레이어 사용):', {
+                                center: { x: (minX + maxX) / 2, y: (minZ + maxZ) / 2, z: (minY + maxY) / 2 },
+                                size: { width: maxX - minX, height: maxY - minY, depth: maxZ - minZ },
+                                cameraDistance: this.cameraDistance
+                            });
+                        }
+                    } else {
+                        console.log('Fit to View 완료 (맵 중심 사용):', {
+                            center: { x: bounds.centerX, y: bounds.centerZ, z: bounds.centerY },
+                            size: { width: bounds.width, height: bounds.height, depth: bounds.depth },
+                            cameraDistance: this.cameraDistance
+                        });
+                    }
+                }
             }
 
             renderAllPlayerPaths() {

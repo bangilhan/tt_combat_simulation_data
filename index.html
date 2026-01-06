@@ -911,9 +911,9 @@
             
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
-            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: stretch;">
-                <button id="csv-load-selected" style="flex: 1; padding: 12px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">선택한 파일 로드</button>
-                <button id="csv-popup-close" style="flex: 1; padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">닫기</button>
+            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
+                <button id="csv-load-selected" style="flex: 1; padding: 12px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin: 0;">선택한 파일 로드</button>
+                <button id="csv-popup-close" style="flex: 1; padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin: 0;">닫기</button>
             </div>
         </div>
     </div>
@@ -5066,7 +5066,17 @@ Three.js · PapaParse · Pure JavaScript`
                     return;
                 }
 
-                console.log('renderTick:', { tickIndex, players: tickData.players.length, tick: tickData.tick });
+                console.log('renderTick:', { 
+                    tickIndex, 
+                    players: tickData.players.length, 
+                    tick: tickData.tick,
+                    game_time: tickData.game_time,
+                    firstPlayer: tickData.players[0] ? {
+                        name: tickData.players[0].name,
+                        position: tickData.players[0].position,
+                        positionArray: Array.isArray(tickData.players[0].position)
+                    } : null
+                });
 
                 // 기존 오브젝트 제거
                 if (this.playerObjects) {
@@ -5081,6 +5091,29 @@ Three.js · PapaParse · Pure JavaScript`
                 // 플레이어 렌더링
                 for (let i = 0; i < tickData.players.length; i++) {
                     const player = tickData.players[i];
+                    
+                    // 플레이어 위치 데이터 검증
+                    if (!player.position || !Array.isArray(player.position) || player.position.length < 3) {
+                        console.warn('플레이어 위치 데이터가 유효하지 않습니다:', { 
+                            playerName: player.name, 
+                            position: player.position 
+                        });
+                        continue;
+                    }
+                    
+                    const posX = player.position[0];
+                    const posY = player.position[1];
+                    const posZ = player.position[2];
+                    
+                    // 위치 값 검증
+                    if (Number.isNaN(posX) || Number.isNaN(posY) || Number.isNaN(posZ)) {
+                        console.warn('플레이어 위치에 NaN이 있습니다:', { 
+                            playerName: player.name, 
+                            position: player.position 
+                        });
+                        continue;
+                    }
+                    
                     // 새 데이터에는 team 정보가 없으므로 player_id를 기반으로 색상 구분
                     // player_id가 음수면 한 팀, 양수면 다른 팀으로 가정
                     const playerIdNum = parseInt(player.name) || 0;
@@ -5103,9 +5136,20 @@ Three.js · PapaParse · Pure JavaScript`
                     });
                     
                     const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.set(player.position[0], player.position[2], player.position[1]);
+                    // Three.js 좌표계: X, Z, Y (position은 [X, Z, Y] 형식)
+                    mesh.position.set(posX, posZ, posY);
                     this.scene.add(mesh);
                     this.playerObjects.set(player.name, mesh);
+                    
+                    // 첫 번째 플레이어 위치 로그 (디버깅용)
+                    if (i === 0) {
+                        console.log('첫 번째 플레이어 렌더링:', {
+                            name: player.name,
+                            position: player.position,
+                            meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+                            cameraPosition: { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }
+                        });
+                    }
 
                     // 플레이어 ID 라벨 (크게)
                     // 현재 틱에 킬 이벤트가 있고 이 플레이어가 공격자인지 확인

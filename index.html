@@ -2688,12 +2688,6 @@ Three.js · PapaParse · Pure JavaScript`
                     this.populateKillPicker();
                     this.populatePlayerPicker();
                     
-                    // POC: CSV 로드 후 자동으로 맵 이미지 로드
-                    // 맵 감지와 상관없이 항상 mapImageSettings 이미지 로드 시도
-                    if (this.mapImageSettings && this.mapImageSettings.imagePath) {
-                        this.loadMapImageFromPath(this.mapImageSettings.imagePath);
-                    }
-                    
                     // 파일 로드 후 3D 시뮬레이션 분석 탭으로 자동 전환
                     this.showInvestigate();
                     
@@ -4291,12 +4285,17 @@ Three.js · PapaParse · Pure JavaScript`
                 const maxDim = Math.max(width, height, depth);
                 this.baseCameraDistance = maxDim * 1.2;
                 this.cameraDistance = this.baseCameraDistance;
+                // 카메라를 맵 중심 위에서 내려다보는 각도로 설정
                 this.camera.position.set(
                     bounds.centerX,
                     bounds.centerZ + maxDim * 0.8,
                     bounds.centerY + maxDim * 1.2
                 );
                 this.camera.lookAt(bounds.centerX, bounds.centerZ, bounds.centerY);
+                
+                // 카메라 회전 초기화
+                this.cameraRotationX = 0.4; // 약 23도 아래로
+                this.cameraRotationY = Math.PI / 4; // 45도
                 
                 // 그리드 조정 (더 명확하게)
                 const gridSize = Math.max(width, height) * 1.2;

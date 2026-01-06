@@ -5135,9 +5135,9 @@ Three.js · PapaParse · Pure JavaScript`
                     // CT는 원형, T는 삼각형
                     let geometry;
                     if (isCT) {
-                        geometry = new THREE.SphereGeometry(12, 16, 16);
+                        geometry = new THREE.SphereGeometry(50, 16, 16); // 크기 증가: 12 -> 50
                     } else {
-                        geometry = new THREE.ConeGeometry(12, 24, 3);
+                        geometry = new THREE.ConeGeometry(50, 100, 3); // 크기 증가: 12, 24 -> 50, 100
                         geometry.rotateX(-Math.PI / 2);
                     }
                     

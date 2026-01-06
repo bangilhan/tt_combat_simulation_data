@@ -2701,28 +2701,6 @@ Three.js · PapaParse · Pure JavaScript`
                         console.log('카메라 위치:', { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z });
                         console.log('씬 오브젝트 수:', this.scene.children.length);
                         
-                        // 테스트: 원점에 빨간 구체 추가 (렌더링이 작동하는지 확인)
-                        const testGeometry = new THREE.SphereGeometry(50, 16, 16);
-                        const testMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1.0 });
-                        const testSphere = new THREE.Mesh(testGeometry, testMaterial);
-                        testSphere.position.set(0, 0, 0);
-                        this.scene.add(testSphere);
-                        console.log('테스트 구체 추가됨 (원점, 빨간색)');
-                        
-                        // 맵 경계 중심에 노란 구체 추가
-                        if (this.mapBounds) {
-                            const centerGeometry = new THREE.SphereGeometry(100, 16, 16);
-                            const centerMaterial = new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 1.0 });
-                            const centerSphere = new THREE.Mesh(centerGeometry, centerMaterial);
-                            centerSphere.position.set(this.mapBounds.centerX, this.mapBounds.centerZ, this.mapBounds.centerY);
-                            this.scene.add(centerSphere);
-                            console.log('맵 중심 구체 추가됨 (노란색):', {
-                                x: this.mapBounds.centerX,
-                                y: this.mapBounds.centerZ,
-                                z: this.mapBounds.centerY
-                            });
-                        }
-                        
                         // 먼저 모든 플레이어의 경로를 라인으로 그려서 시각화
                         this.renderAllPlayerPaths();
                         
@@ -2731,6 +2709,19 @@ Three.js · PapaParse · Pure JavaScript`
                         
                         console.log('렌더링 후 씬 오브젝트 수:', this.scene.children.length);
                         console.log('플레이어 오브젝트 수:', this.playerObjects.size);
+                        console.log('플레이어 라벨 수:', this.playerLabels.size);
+                        
+                        // 첫 번째 플레이어 위치 확인
+                        if (this.data.positions[0] && this.data.positions[0].players.length > 0) {
+                            const firstPlayer = this.data.positions[0].players[0];
+                            const mesh = this.playerObjects.get(firstPlayer.name);
+                            console.log('첫 번째 플레이어 최종 확인:', {
+                                name: firstPlayer.name,
+                                position: firstPlayer.position,
+                                mesh_exists: !!mesh,
+                                mesh_position: mesh ? { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z } : null
+                            });
+                        }
                         
                         // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
                         const container = document.getElementById('canvas-container');

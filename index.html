@@ -1110,12 +1110,17 @@
                 
                 if (dashboardView && container) {
                     container.style.display = 'none';
+                    dashboardView.style.display = 'block';
+                    dashboardView.style.visibility = 'visible';
                     dashboardView.classList.remove('hidden');
                     // 하단 패널 숨기기
                     if (bottomPanel) {
                         bottomPanel.style.display = 'none';
                     }
+                    // Dashboard 렌더링
                     this.renderDashboard();
+                } else {
+                    console.error('Dashboard view 또는 container를 찾을 수 없습니다');
                 }
             }
 

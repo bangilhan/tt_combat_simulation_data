@@ -102,6 +102,29 @@
             position: relative;
             background: #0a0e15;
             display: block;
+        }
+        
+        #minimap {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 250px;
+            height: 250px;
+            background: rgba(26, 31, 46, 0.9);
+            border: 2px solid #4a90e2;
+            border-radius: 4px;
+            z-index: 1000;
+            cursor: pointer;
+        }
+        
+        #minimap-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        #fit-to-view {
+            margin-left: 8px;
             visibility: visible;
         }
 
@@ -770,12 +793,16 @@
 
         <div id="canvas-container">
             <canvas id="canvas"></canvas>
+            <div id="minimap" style="display: none;">
+                <canvas id="minimap-canvas"></canvas>
+            </div>
             <div id="event-picker">
                 <select id="kill-select">
                     <option value="">Kill events will appear here</option>
                 </select>
                 <button id="go-kill" class="primary">Go</button>
                 <button id="reset-view">Reset View</button>
+                <button id="fit-to-view">Fit to View</button>
 
                 <span style="width:12px"></span>
                 <select id="player-select">
@@ -5232,6 +5259,9 @@ Three.js · PapaParse · Pure JavaScript`
 
                 this.renderEvents(tickData.game_time);
                 this.updateEventLog();
+                
+                // 미니맵 업데이트
+                this.updateMinimap();
             }
 
             renderAllPlayerPaths() {

@@ -793,9 +793,10 @@
 
         <div id="canvas-container">
             <canvas id="canvas"></canvas>
-            <div id="minimap" style="display: none;">
+            <!-- 미니맵 제거 (메인 뷰가 2D이므로 불필요) -->
+            <!-- <div id="minimap" style="display: none;">
                 <canvas id="minimap-canvas"></canvas>
-            </div>
+            </div> -->
             <div id="event-picker">
                 <select id="kill-select">
                     <option value="">Kill events will appear here</option>
@@ -4301,17 +4302,10 @@ Three.js · PapaParse · Pure JavaScript`
                 this.cameraRotationX = 0.4; // 약 23도 아래로
                 this.cameraRotationY = Math.PI / 4; // 45도
                 
-                // 미니맵 초기화 (함수가 정의되어 있는지 확인)
-                if (typeof this.initMinimap === 'function') {
-                    this.initMinimap();
-                } else {
-                    // 함수가 아직 정의되지 않았으면 나중에 초기화
-                    setTimeout(() => {
-                        if (typeof this.initMinimap === 'function') {
-                            this.initMinimap();
-                        }
-                    }, 100);
-                }
+                // 미니맵 비활성화 (메인 뷰가 2D이므로 불필요)
+                // if (typeof this.initMinimap === 'function') {
+                //     this.initMinimap();
+                // }
                 
                 // 그리드 조정 (더 명확하게)
                 const gridSize = Math.max(width, height) * 1.2;
@@ -4481,40 +4475,19 @@ Three.js · PapaParse · Pure JavaScript`
                             return;
                         }
                         
-                        if (shouldPan) {
-                            // 패닝 모드: 카메라를 평면으로 이동
-                            // 맵 크기에 비례하여 패닝 속도 조정
-                            const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
-                            const panSpeed = Math.max(0.1, Math.min(2.0, mapSize / 10000)); // 맵이 클수록 더 빠르게
-                            const right = new THREE.Vector3();
-                            const up = new THREE.Vector3();
-                            
-                            // 카메라의 오른쪽 방향 계산
-                            this.camera.getWorldDirection(new THREE.Vector3());
-                            right.setFromMatrixColumn(this.camera.matrixWorld, 0);
-                            up.setFromMatrixColumn(this.camera.matrixWorld, 1);
-                            
-                            // 패닝 오프셋 누적
-                            this.panOffset.x -= right.x * deltaX * panSpeed;
-                            this.panOffset.y -= right.y * deltaX * panSpeed;
-                            this.panOffset.z -= right.z * deltaX * panSpeed;
-                            
-                            this.panOffset.x += up.x * deltaY * panSpeed;
-                            this.panOffset.y += up.y * deltaY * panSpeed;
-                            this.panOffset.z += up.z * deltaY * panSpeed;
-                            
-                            // 패닝 모드 업데이트
-                            isPanning = true;
-                        } else {
-                            // 일반 모드: 카메라 회전 (속도 조정)
-                            const rotationSpeed = 0.005; // 0.01 -> 0.005로 감소하여 더 부드럽게
-                            this.cameraRotationY += deltaX * rotationSpeed;
-                            this.cameraRotationX += deltaY * rotationSpeed;
-                            this.cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.cameraRotationX));
-                            
-                            // 회전 모드로 전환
-                            isPanning = false;
-                        }
+                        // 2D 뷰에서는 항상 패닝만 사용 (회전 없음)
+                        const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
+                        const panSpeed = Math.max(0.1, Math.min(2.0, mapSize / 10000));
+                        
+                        // Shift 키를 누르면 더 빠른 패닝, 아니면 일반 패닝
+                        const speedMultiplier = shouldPan ? 1.5 : 1.0;
+                        
+                        // 2D 뷰에서는 X, Z 평면으로만 패닝
+                        this.panOffset.x -= deltaX * panSpeed * speedMultiplier;
+                        this.panOffset.z -= deltaY * panSpeed * speedMultiplier;
+                        
+                        // 패닝 모드 업데이트
+                        isPanning = true;
                         
                         // 카메라 업데이트 (패닝/회전 모두 즉시 반영)
                         if (this.updateCamera) {
@@ -4644,76 +4617,39 @@ Three.js · PapaParse · Pure JavaScript`
                 });
 
                 this.updateCamera = () => {
-                    // Follow 모드일 때는 2D 뷰 (위에서 내려다보는 각도, Z 값 무시)
-                    if (this.followPlayer && this.selectedPlayer && this.cameraTarget) {
-                        const target = this.cameraTarget;
-                        // 2D 뷰: 카메라를 위에서 내려다보는 각도로 고정 (X, Y 평면만 고려)
-                        // 카메라를 타겟 위에 수직으로 배치 (플레이어가 화면 가운데 오도록)
-                        this.camera.position.set(
-                            target.x + (this.panOffset ? this.panOffset.x : 0),
-                            target.y + this.cameraDistance, // Y축(높이)으로만 거리 조정
-                            target.z + (this.panOffset ? this.panOffset.z : 0)
-                        );
-                        // 타겟을 X, Z 평면에서 바라보기 (Y는 높이이므로 무시)
-                        // 플레이어가 화면 정중앙에 오도록 lookAt
-                        this.camera.lookAt(
-                            target.x + (this.panOffset ? this.panOffset.x : 0),
-                            target.y, // 타겟의 높이는 유지하되 카메라는 위에서 내려다봄
-                            target.z + (this.panOffset ? this.panOffset.z : 0)
-                        );
-                        return;
-                    }
+                    // 항상 2D 뷰 (위에서 내려다보는 각도)로 설정
+                    // Follow 모드일 때는 선택된 플레이어 중심, 아니면 타겟 또는 맵 중심
+                    let target;
                     
-                    // 타겟이 설정되어 있으면 타겟 중심, 없으면 맵 중심
-                    if (this.cameraTarget) {
-                        // 포커스 모드에서도 패닝 오프셋 적용
-                        const target = this.cameraTarget;
-                        const baseX = target.x + this.cameraDistance * Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX);
-                        const baseY = target.y + this.cameraDistance * Math.sin(this.cameraRotationX);
-                        const baseZ = target.z + this.cameraDistance * Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX);
-                        // 패닝 오프셋 적용
-                        this.camera.position.set(
-                            baseX + this.panOffset.x,
-                            baseY + this.panOffset.y,
-                            baseZ + this.panOffset.z
-                        );
-                        this.camera.lookAt(
-                            target.x + this.panOffset.x,
-                            target.y + this.panOffset.y,
-                            target.z + this.panOffset.z
-                        );
+                    if (this.followPlayer && this.selectedPlayer && this.cameraTarget) {
+                        target = this.cameraTarget;
+                    } else if (this.cameraTarget) {
+                        target = this.cameraTarget;
                     } else if (this.mapBounds) {
                         const bounds = this.mapBounds;
-                        const baseX = bounds.centerX + this.cameraDistance * Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX);
-                        const baseY = bounds.centerZ + this.cameraDistance * Math.sin(this.cameraRotationX);
-                        const baseZ = bounds.centerY + this.cameraDistance * Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX);
-                        // 패닝 오프셋 적용
-                        this.camera.position.set(
-                            baseX + this.panOffset.x,
-                            baseY + this.panOffset.y,
-                            baseZ + this.panOffset.z
-                        );
-                        this.camera.lookAt(
-                            bounds.centerX + this.panOffset.x,
-                            bounds.centerZ + this.panOffset.y,
-                            bounds.centerY + this.panOffset.z
-                        );
+                        target = {
+                            x: bounds.centerX,
+                            y: bounds.centerZ,
+                            z: bounds.centerY
+                        };
                     } else {
-                        const baseX = this.cameraDistance * Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX);
-                        const baseY = this.cameraDistance * Math.sin(this.cameraRotationX);
-                        const baseZ = this.cameraDistance * Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX);
-                        // 패닝 오프셋 적용
-                        this.camera.position.set(
-                            baseX + this.panOffset.x,
-                            baseY + this.panOffset.y,
-                            baseZ + this.panOffset.z
-                        );
-                        this.camera.lookAt(
-                            this.panOffset.x,
-                            this.panOffset.y,
-                            this.panOffset.z
-                        );
+                        target = { x: 0, y: 0, z: 0 };
                     }
+                    
+                    // 2D 뷰: 카메라를 위에서 내려다보는 각도로 고정
+                    // 카메라를 타겟 위에 수직으로 배치
+                    this.camera.position.set(
+                        target.x + (this.panOffset ? this.panOffset.x : 0),
+                        target.y + this.cameraDistance, // Y축(높이)으로만 거리 조정
+                        target.z + (this.panOffset ? this.panOffset.z : 0)
+                    );
+                    // 타겟을 X, Z 평면에서 바라보기 (Y는 높이이므로 무시)
+                    this.camera.lookAt(
+                        target.x + (this.panOffset ? this.panOffset.x : 0),
+                        target.y, // 타겟의 높이는 유지하되 카메라는 위에서 내려다봄
+                        target.z + (this.panOffset ? this.panOffset.z : 0)
+                    );
+                    return;
                 };
 
                 document.getElementById('play-btn').addEventListener('click', () => {
@@ -5461,8 +5397,8 @@ Three.js · PapaParse · Pure JavaScript`
                 this.renderEvents(tickData.game_time);
                 this.updateEventLog();
                 
-                // 미니맵 업데이트
-                this.updateMinimap();
+                // 미니맵 업데이트 비활성화 (메인 뷰가 2D이므로 불필요)
+                // this.updateMinimap();
             }
             
             initMinimap() {

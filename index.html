@@ -907,7 +907,7 @@
     <!-- GitHub CSV 선택 팝업 -->
     <div id="csv-popup">
         <div id="csv-popup-content">
-            <h3>CSV 파일 선택 (여러 개 선택 가능)</h3>
+            <h3>CSV 파일 선택</h3>
             
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
@@ -1487,8 +1487,8 @@ Three.js · PapaParse · Pure JavaScript`
                         return;
                     }
                     
-                    // 선택된 파일들을 추적하기 위한 Set
-                    this.selectedCSVFiles = new Set();
+                    // 단일 파일 선택 (라디오 버튼 사용)
+                    this.selectedCSVFile = null;
                     
                     csvFiles.forEach(file => {
                         const li = document.createElement('li');
@@ -1505,16 +1505,15 @@ Three.js · PapaParse · Pure JavaScript`
                             li.style.background = 'transparent';
                         });
                         
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.value = file.download_url;
-                        checkbox.dataset.filename = file.name;
-                        checkbox.style.cursor = 'pointer';
-                        checkbox.addEventListener('change', (e) => {
+                        const radio = document.createElement('input');
+                        radio.type = 'radio';
+                        radio.name = 'csv-file-select';
+                        radio.value = file.download_url;
+                        radio.dataset.filename = file.name;
+                        radio.style.cursor = 'pointer';
+                        radio.addEventListener('change', (e) => {
                             if (e.target.checked) {
-                                this.selectedCSVFiles.add(file.download_url);
-                            } else {
-                                this.selectedCSVFiles.delete(file.download_url);
+                                this.selectedCSVFile = file.download_url;
                             }
                         });
                         
@@ -1524,11 +1523,11 @@ Three.js · PapaParse · Pure JavaScript`
                         label.style.flex = '1';
                         label.addEventListener('click', (e) => {
                             e.preventDefault();
-                            checkbox.checked = !checkbox.checked;
-                            checkbox.dispatchEvent(new Event('change'));
+                            radio.checked = true;
+                            radio.dispatchEvent(new Event('change'));
                         });
                         
-                        li.appendChild(checkbox);
+                        li.appendChild(radio);
                         li.appendChild(label);
                         fileList.appendChild(li);
                     });
@@ -1537,11 +1536,11 @@ Three.js · PapaParse · Pure JavaScript`
                     const loadBtn = document.getElementById('csv-load-selected');
                     if (loadBtn) {
                         loadBtn.onclick = () => {
-                            if (this.selectedCSVFiles.size === 0) {
-                                alert('파일을 하나 이상 선택해주세요.');
+                            if (!this.selectedCSVFile) {
+                                alert('파일을 선택해주세요.');
                                 return;
                             }
-                            this.loadMultipleCSVFiles();
+                            this.loadSingleCSVFile(this.selectedCSVFile);
                             popup.classList.remove('active');
                         };
                     }
@@ -2353,11 +2352,25 @@ Three.js · PapaParse · Pure JavaScript`
                         await new Promise(resolve => setTimeout(resolve, 0)); // 다음 이벤트 루프로
                     }
                     
+                    // 마지막 tick 데이터 저장
                     if (currentTick !== null && tickData.players && tickData.players.length) {
                         positions.push({
                             tick: currentTick,
                             game_time: tickData.game_time || 0,
                             players: tickData.players || []
+                        });
+                    }
+                    
+                    console.log('데이터 처리 완료 - Positions:', positions.length, '개 틱');
+                    if (positions.length > 0) {
+                        console.log('첫 번째 틱 샘플:', {
+                            tick: positions[0].tick,
+                            game_time: positions[0].game_time,
+                            players_count: positions[0].players.length,
+                            first_player: positions[0].players[0] ? {
+                                name: positions[0].players[0].name,
+                                position: positions[0].players[0].position
+                            } : null
                         });
                     }
                     

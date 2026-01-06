@@ -4508,9 +4508,14 @@ Three.js · PapaParse · Pure JavaScript`
                         const deltaX = e.clientX - mouseX;
                         const deltaY = e.clientY - mouseY;
                         
-                        if (isPanning || e.shiftKey) {
+                        // Shift 키 상태를 실시간으로 확인 (mousemove 중에도 변경 가능)
+                        const shouldPan = e.shiftKey || isPanning;
+                        
+                        if (shouldPan) {
                             // 패닝 모드: 카메라를 평면으로 이동
-                            const panSpeed = 0.5;
+                            // 맵 크기에 비례하여 패닝 속도 조정
+                            const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
+                            const panSpeed = Math.max(0.1, Math.min(2.0, mapSize / 10000)); // 맵이 클수록 더 빠르게
                             const right = new THREE.Vector3();
                             const up = new THREE.Vector3();
                             
@@ -4527,12 +4532,20 @@ Three.js · PapaParse · Pure JavaScript`
                             this.panOffset.x += up.x * deltaY * panSpeed;
                             this.panOffset.y += up.y * deltaY * panSpeed;
                             this.panOffset.z += up.z * deltaY * panSpeed;
+                            
+                            // 패닝 모드 업데이트
+                            isPanning = true;
+                            this.updateCamera(); // 즉시 카메라 업데이트
                         } else {
                             // 일반 모드: 카메라 회전 (속도 조정)
                             const rotationSpeed = 0.005; // 0.01 -> 0.005로 감소하여 더 부드럽게
                             this.cameraRotationY += deltaX * rotationSpeed;
                             this.cameraRotationX += deltaY * rotationSpeed;
-                        this.cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.cameraRotationX));
+                            this.cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.cameraRotationX));
+                            
+                            // 회전 모드로 전환
+                            isPanning = false;
+                            this.updateCamera(); // 즉시 카메라 업데이트
                         }
                         mouseX = e.clientX;
                         mouseY = e.clientY;
@@ -5195,11 +5208,50 @@ Three.js · PapaParse · Pure JavaScript`
                     });
                 }
 
-                // 기존 오브젝트 제거
-                this.playerObjects.forEach(obj => this.scene.remove(obj));
-                this.playerLabels.forEach(obj => this.scene.remove(obj));
-                this.playerObjects.clear();
-                this.playerLabels.clear();
+                // 기존 오브젝트 제거 (잔상 방지 - 완전히 제거)
+                if (this.playerObjects) {
+                    this.playerObjects.forEach(obj => {
+                        if (obj && obj.parent) {
+                            this.scene.remove(obj);
+                            // 메시의 지오메트리와 머티리얼 정리
+                            if (obj.geometry) obj.geometry.dispose();
+                            if (obj.material) {
+                                if (Array.isArray(obj.material)) {
+                                    obj.material.forEach(mat => mat.dispose());
+                                } else {
+                                    obj.material.dispose();
+                                }
+                            }
+                        }
+                    });
+                    this.playerObjects.clear();
+                }
+                
+                if (this.playerLabels) {
+                    this.playerLabels.forEach(obj => {
+                        if (obj && obj.parent) {
+                            this.scene.remove(obj);
+                            // 스프라이트의 머티리얼과 텍스처 정리
+                            if (obj.material) {
+                                if (obj.material.map) obj.material.map.dispose();
+                                obj.material.dispose();
+                            }
+                        }
+                    });
+                    this.playerLabels.clear();
+                }
+                
+                // 플레이어 트레일도 제거 (잔상 방지)
+                if (this.playerTrails) {
+                    this.playerTrails.forEach(trailData => {
+                        if (trailData && trailData.line && trailData.line.parent) {
+                            this.scene.remove(trailData.line);
+                            if (trailData.line.geometry) trailData.line.geometry.dispose();
+                            if (trailData.line.material) trailData.line.material.dispose();
+                        }
+                    });
+                    this.playerTrails.clear();
+                }
 
                 // 플레이어 렌더링
                 for (let i = 0; i < tickData.players.length; i++) {
@@ -5332,8 +5384,8 @@ Three.js · PapaParse · Pure JavaScript`
                     this.scene.add(sprite);
                     this.playerLabels.set(player.name, sprite);
                     
-                    // 트레일 업데이트
-                    this.updateTrail(player.name, player.position, color);
+                    // 트레일 업데이트 제거 (잔상 문제 방지)
+                    // this.updateTrail(player.name, player.position, color);
                 }
 
                 this.renderEvents(tickData.game_time);

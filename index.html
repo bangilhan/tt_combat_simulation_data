@@ -5326,7 +5326,36 @@ Three.js · PapaParse · Pure JavaScript`
                     bounds.depth * scale
                 );
                 
-                // 현재 틱의 플레이어 표시
+                // 플레이어 경로를 미니맵에 그리기 (전체 경로 - 반투명)
+                if (this.playerPathLines && this.playerPathLines.size > 0) {
+                    this.playerPathLines.forEach((line, playerName) => {
+                        const geometry = line.geometry;
+                        if (!geometry || !geometry.attributes || !geometry.attributes.position) return;
+                        
+                        const positions = geometry.attributes.position.array;
+                        const isCT = !playerName.startsWith('-');
+                        ctx.strokeStyle = isCT ? 'rgba(91, 155, 213, 0.3)' : 'rgba(255, 107, 107, 0.3)'; // 반투명 경로
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        
+                        const offsetX = (minimapCanvas.width - bounds.width * scale) / 2;
+                        const offsetY = (minimapCanvas.height - bounds.depth * scale) / 2;
+                        
+                        for (let i = 0; i < positions.length; i += 3) {
+                            const x = offsetX + (positions[i] - bounds.minX) * scale;
+                            const y = offsetY + (positions[i + 2] - bounds.minZ) * scale; // Three.js는 [X, Z, Y] 순서
+                            
+                            if (i === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                        ctx.stroke();
+                    });
+                }
+                
+                // 현재 틱의 플레이어 표시 (큰 점으로)
                 if (this.data && this.data.positions && this.currentTick < this.data.positions.length) {
                     const tickData = this.data.positions[this.currentTick];
                     if (tickData && tickData.players) {
@@ -5339,10 +5368,17 @@ Three.js · PapaParse · Pure JavaScript`
                             const x = offsetX + (player.position[0] - bounds.minX) * scale;
                             const y = offsetY + (player.position[2] - bounds.minZ) * scale;
                             
-                            ctx.fillStyle = player.team === 'CT' ? '#5b9bd5' : '#ff6b6b';
+                            // 플레이어 위치를 더 크고 명확하게 표시
+                            const isCT = !player.name.startsWith('-');
+                            ctx.fillStyle = isCT ? '#5b9bd5' : '#ff6b6b';
                             ctx.beginPath();
-                            ctx.arc(x, y, 3, 0, Math.PI * 2);
+                            ctx.arc(x, y, 4, 0, Math.PI * 2); // 3 -> 4로 크기 증가
                             ctx.fill();
+                            
+                            // 외곽선 추가
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
                         });
                     }
                 }

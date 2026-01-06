@@ -4535,7 +4535,6 @@ Three.js · PapaParse · Pure JavaScript`
                             
                             // 패닝 모드 업데이트
                             isPanning = true;
-                            this.updateCamera(); // 즉시 카메라 업데이트
                         } else {
                             // 일반 모드: 카메라 회전 (속도 조정)
                             const rotationSpeed = 0.005; // 0.01 -> 0.005로 감소하여 더 부드럽게
@@ -4545,7 +4544,11 @@ Three.js · PapaParse · Pure JavaScript`
                             
                             // 회전 모드로 전환
                             isPanning = false;
-                            this.updateCamera(); // 즉시 카메라 업데이트
+                        }
+                        
+                        // 카메라 업데이트 (패닝/회전 모두 즉시 반영)
+                        if (this.updateCamera) {
+                            this.updateCamera();
                         }
                         mouseX = e.clientX;
                         mouseY = e.clientY;

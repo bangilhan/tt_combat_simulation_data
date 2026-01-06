@@ -2206,17 +2206,22 @@ Three.js · PapaParse · Pure JavaScript`
                         }
                     };
                     
-                    // 청크 단위 처리
+                    // 청크 단위 처리 (비동기로 UI 블로킹 방지)
                     for (let chunkStart = 0; chunkStart < totalRows; chunkStart += chunkSize) {
                         const chunkEnd = Math.min(chunkStart + chunkSize, totalRows);
                         const chunk = rows.slice(chunkStart, chunkEnd);
                         
-                        chunk.forEach((row, localIdx) => {
-                        const idx = chunkStart + localIdx;
+                        // 진행률 업데이트
+                        updateProgress((chunkStart / totalRows) * 100);
                         
-                        // 새로운 데이터 스키마: tick 필수
-                        const tickStr = row.tick && row.tick.trim ? row.tick.trim() : (row.tick !== undefined && row.tick !== null ? String(row.tick) : null);
-                        if (!tickStr || tickStr === '') return;
+                        // 각 청크를 동기적으로 처리하되, 큰 청크는 나눠서 처리
+                        for (let i = 0; i < chunk.length; i++) {
+                            const row = chunk[i];
+                            const rowIdx = chunkStart + i;
+                            
+                            // 새로운 데이터 스키마: tick 필수
+                            const tickStr = row.tick && row.tick.trim ? row.tick.trim() : (row.tick !== undefined && row.tick !== null ? String(row.tick) : null);
+                            if (!tickStr || tickStr === '') continue;
                         
                         const tick = parseInt(tickStr);
                         if (Number.isNaN(tick)) return;
@@ -2405,7 +2410,7 @@ Three.js · PapaParse · Pure JavaScript`
                                 }
                             }
                         }
-                        });
+                        }
                         
                         // 진행 상황 업데이트 및 UI 차단 방지
                         updateProgress((chunkEnd / totalRows) * 100);

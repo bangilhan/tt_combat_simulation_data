@@ -912,8 +912,8 @@
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
             <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <button id="csv-load-selected" style="padding: 8px 16px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer;">선택한 파일 로드</button>
-                <button id="csv-popup-close" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+                <button id="csv-load-selected" style="flex: 1; padding: 10px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">선택한 파일 로드</button>
+                <button id="csv-popup-close" style="flex: 1; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">닫기</button>
             </div>
         </div>
     </div>
@@ -1391,19 +1391,7 @@ Three.js · PapaParse · Pure JavaScript`
                     const apiUrl = `https://api.github.com/repos/${repo}/contents`;
                     console.log('GitHub API 호출:', apiUrl);
                     
-                    // Token 가져오기
-                    const token = this.getGitHubToken();
-                    const headers = {};
-                    if (token) {
-                        headers['Authorization'] = `token ${token}`;
-                        console.log('Private repository 접근 (Token 사용)');
-                    } else {
-                        console.log('Public repository 접근 시도');
-                    }
-                    
-                    const response = await fetch(apiUrl, {
-                        headers: headers
-                    });
+                    const response = await fetch(apiUrl);
                     
                     // 응답 상태 확인
                     if (!response.ok) {

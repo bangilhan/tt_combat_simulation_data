@@ -2698,7 +2698,19 @@ Three.js · PapaParse · Pure JavaScript`
                     
                     // 시뮬레이션 렌더링 초기화
                     setTimeout(() => {
+                        console.log('=== 초기 렌더링 시작 ===');
+                        console.log('Positions 수:', this.data.positions.length);
+                        console.log('첫 번째 틱 데이터:', this.data.positions[0]);
+                        console.log('첫 번째 틱 플레이어 수:', this.data.positions[0]?.players?.length || 0);
+                        console.log('맵 경계:', this.mapBounds);
+                        console.log('카메라 위치:', { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z });
+                        
+                        // 먼저 모든 플레이어의 경로를 라인으로 그려서 시각화
+                        this.renderAllPlayerPaths();
+                        
+                        // 그 다음 캐릭터 렌더링
                         this.renderTick(0);
+                        
                         // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
                         const container = document.getElementById('canvas-container');
                         if (container && this.renderer) {

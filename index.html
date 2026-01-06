@@ -1669,6 +1669,25 @@ Three.js · PapaParse · Pure JavaScript`
                         headers['Authorization'] = `token ${token}`;
                     }
                     
+                    // 단일 파일인 경우 병합 없이 직접 로드
+                    if (fileCount === 1) {
+                        const url = fileUrls[0];
+                        const response = await fetch(url, {
+                            headers: headers
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const text = await response.text();
+                        const filename = url.split('/').pop() || 'unknown.csv';
+                        const blob = new Blob([text], { type: 'text/csv' });
+                        const file = new File([blob], filename, { type: 'text/csv' });
+                        
+                        await this.loadCSV(file);
+                        return;
+                    }
+                    
+                    // 여러 파일인 경우에만 병합
                     // 모든 파일을 병렬로 다운로드
                     const filePromises = fileUrls.map(async (url) => {
                         const response = await fetch(url, {
@@ -1721,7 +1740,10 @@ Three.js · PapaParse · Pure JavaScript`
                             });
                         });
                         
-                        allRows.push(...rows);
+                        // 스프레드 연산자 대신 직접 루프로 추가 (스택 오버플로우 방지)
+                        for (let j = 0; j < rows.length; j++) {
+                            allRows.push(rows[j]);
+                        }
                     }
                     
                     if (loading) {

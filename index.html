@@ -907,13 +907,13 @@
     <!-- GitHub CSV 선택 팝업 -->
     <div id="csv-popup">
         <div id="csv-popup-content">
-            <h3>CSV 파일 선택</h3>
+            <h3>경로에서 확인되는 csv 파일</h3>
             
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
-            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: stretch;">
-                <button id="csv-load-selected" style="flex: 1; padding: 10px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 40px; line-height: 1.2; box-sizing: border-box;">선택한 파일 로드</button>
-                <button id="csv-popup-close" style="flex: 1; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 40px; line-height: 1.2; box-sizing: border-box;">닫기</button>
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button id="csv-load-selected" style="flex: 1; padding: 12px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">선택한 파일 로드</button>
+                <button id="csv-popup-close" style="flex: 1; padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 44px; line-height: 1; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">닫기</button>
             </div>
         </div>
     </div>
@@ -931,6 +931,7 @@
                 this.currentTick = 0;
                 this.isPlaying = false;
                 this.playSpeed = 1;
+                this.initialRenderDone = false;
                 
                 this.playerObjects = new Map();
                 this.playerLabels = new Map();
@@ -2697,6 +2698,7 @@ Three.js · PapaParse · Pure JavaScript`
                     
                     // 시뮬레이션 렌더링 초기화
                     this.currentTick = 0; // 초기 틱 설정
+                    this.initialRenderDone = false; // 초기 렌더링 플래그 리셋
                     setTimeout(() => {
                         console.log('초기 렌더링 시작:', { 
                             positionsLength: this.data.positions.length, 
@@ -5394,6 +5396,16 @@ Three.js · PapaParse · Pure JavaScript`
 
                 if (this.updateCamera) {
                     this.updateCamera();
+                }
+
+                // 데이터가 로드되었지만 아직 렌더링되지 않은 경우 초기 렌더링
+                if (this.data && this.data.positions && this.data.positions.length > 0) {
+                    // 재생 중이 아닐 때도 현재 틱을 렌더링 (정지 상태에서도 보이도록)
+                    if (!this.isPlaying && !this.initialRenderDone) {
+                        this.renderTick(this.currentTick);
+                        this.updateTimeDisplay();
+                        this.initialRenderDone = true;
+                    }
                 }
 
                 if (this.isPlaying && this.data) {

@@ -697,12 +697,8 @@
                 <div class="stat-group">
                     <div class="stat-group-title">Game</div>
                     <div class="stat-item">
-                        <span class="stat-label">Server:</span>
-                        <span class="stat-value">Valve-Counter-Strike</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Game Mode:</span>
-                        <span class="stat-value">SourceTV-Demo</span>
+                        <span class="stat-label">Match ID:</span>
+                        <span class="stat-value" id="match-id">-</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Start time:</span>
@@ -715,6 +711,14 @@
                     <div class="stat-item">
                         <span class="stat-label">Players:</span>
                         <span class="stat-value" id="total-players">-</span>
+                    </div>
+                    <div class="stat-item" style="display: none;">
+                        <span class="stat-label">Server:</span>
+                        <span class="stat-value" id="server-info">-</span>
+                    </div>
+                    <div class="stat-item" style="display: none;">
+                        <span class="stat-label">Game Mode:</span>
+                        <span class="stat-value" id="game-mode">-</span>
                     </div>
                 </div>
 
@@ -729,16 +733,16 @@
                         <span class="stat-value" id="match-length">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Match Mode:</span>
-                        <span class="stat-value">5v5</span>
-                    </div>
-                    <div class="stat-item">
                         <span class="stat-label">Map Name:</span>
                         <span class="stat-value" id="map-name">-</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Total Events:</span>
                         <span class="stat-value" id="total-events">-</span>
+                    </div>
+                    <div class="stat-item" style="display: none;">
+                        <span class="stat-label">Match Mode:</span>
+                        <span class="stat-value" id="match-mode">-</span>
                     </div>
                 </div>
 
@@ -873,10 +877,44 @@
     <!-- GitHub CSV 선택 팝업 -->
     <div id="csv-popup">
         <div id="csv-popup-content">
-            <h3>현재 경로에서 확인되는 리플레이 파일 선택</h3>
+            <h3>CSV 파일 선택 (여러 개 선택 가능)</h3>
+            
+            <!-- GitHub Token 입력 (Private Repository용) -->
+            <div id="github-token-section" style="margin-bottom: 15px; padding: 10px; background: #0f1419; border-radius: 4px; border: 1px solid #2a2f3e;">
+                <label style="display: block; color: #8a8fa5; font-size: 12px; margin-bottom: 5px;">
+                    GitHub Personal Access Token (Private Repository용, 선택사항)
+                </label>
+                <div style="display: flex; gap: 5px;">
+                    <input 
+                        type="password" 
+                        id="github-token-input" 
+                        placeholder="ghp_xxxxxxxxxxxxx" 
+                        style="flex: 1; padding: 8px; background: #1a1f2e; border: 1px solid #2a2f3e; border-radius: 4px; color: #fff; font-size: 12px;"
+                    />
+                    <button 
+                        id="github-token-save" 
+                        style="padding: 8px 12px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                    >
+                        저장
+                    </button>
+                    <button 
+                        id="github-token-clear" 
+                        style="padding: 8px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                    >
+                        삭제
+                    </button>
+                </div>
+                <small style="color: #8a8fa5; font-size: 11px; display: block; margin-top: 5px;">
+                    Token은 브라우저에 저장되며, Private repository 접근에만 사용됩니다.
+                </small>
+            </div>
+            
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
-            <button id="csv-popup-close">닫기</button>
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button id="csv-load-selected" style="padding: 8px 16px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer;">선택한 파일 로드</button>
+                <button id="csv-popup-close" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
+            </div>
         </div>
     </div>
 
@@ -924,15 +962,17 @@
                     offsetX: 0,
                     offsetY: 0,
                     textureRotation: 0,
-                    scaleX: 1.0,
-                    scaleZ: 1.0,
+                    scaleX: 1,
+                    scaleZ: 1,
                     worldOffsetX: 0,
                     worldOffsetZ: 0,
                     worldOffsetY: 0,
-                    worldRotation: 0,
-                    flipY: false
+                    worldRotation: 0
                 };
                 this.followPlayer = false;
+                
+                // window.simulation에 인스턴스 할당 (디버깅용)
+                window.simulation = this;
                 
                 this.init();
             }
@@ -997,6 +1037,47 @@
                         document.getElementById('csv-popup').classList.remove('active');
                     });
                 }
+                
+                // GitHub Token 관리
+                this.setupGitHubToken();
+            }
+            
+            setupGitHubToken() {
+                const tokenInput = document.getElementById('github-token-input');
+                const saveBtn = document.getElementById('github-token-save');
+                const clearBtn = document.getElementById('github-token-clear');
+                
+                // 저장된 Token 불러오기
+                const savedToken = localStorage.getItem('github_pat_token');
+                if (savedToken && tokenInput) {
+                    tokenInput.value = savedToken;
+                }
+                
+                // 저장 버튼
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', () => {
+                        const token = tokenInput ? tokenInput.value.trim() : '';
+                        if (token) {
+                            localStorage.setItem('github_pat_token', token);
+                            alert('Token이 저장되었습니다.');
+                        } else {
+                            alert('Token을 입력해주세요.');
+                        }
+                    });
+                }
+                
+                // 삭제 버튼
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', () => {
+                        if (tokenInput) tokenInput.value = '';
+                        localStorage.removeItem('github_pat_token');
+                        alert('Token이 삭제되었습니다.');
+                    });
+                }
+            }
+            
+            getGitHubToken() {
+                return localStorage.getItem('github_pat_token') || null;
             }
 
             setupNavigation() {
@@ -1309,35 +1390,287 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 try {
                     // GitHub API로 CSV 파일 목록 가져오기
-                    const repo = 'bangilhan/fps_combat_simulation';
-                    const response = await fetch(`https://api.github.com/repos/${repo}/contents`);
+                    const repo = 'bangilhan/tt_combat_simulation_data';
+                    const apiUrl = `https://api.github.com/repos/${repo}/contents`;
+                    console.log('GitHub API 호출:', apiUrl);
+                    
+                    // Token 가져오기
+                    const token = this.getGitHubToken();
+                    const headers = {};
+                    if (token) {
+                        headers['Authorization'] = `token ${token}`;
+                        console.log('Private repository 접근 (Token 사용)');
+                    } else {
+                        console.log('Public repository 접근 시도');
+                    }
+                    
+                    const response = await fetch(apiUrl, {
+                        headers: headers
+                    });
+                    
+                    // 응답 상태 확인
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            loading.style.display = 'none';
+                            fileList.innerHTML = `
+                                <li style="color: #ff6b6b; padding: 10px;">
+                                    <strong>Repository를 찾을 수 없습니다.</strong><br>
+                                    <small style="color: #8a8fa5;">
+                                        Repository 이름: ${repo}<br>
+                                        확인 사항:<br>
+                                        1. Repository가 생성되었는지 확인<br>
+                                        2. Repository 이름이 정확한지 확인<br>
+                                        3. Repository가 Public인지 확인 (Private은 인증 필요)
+                                    </small>
+                                </li>
+                            `;
+                            console.error('Repository를 찾을 수 없음:', response.status, response.statusText);
+                            return;
+                        } else if (response.status === 403) {
+                            loading.style.display = 'none';
+                            fileList.innerHTML = `
+                                <li style="color: #ff6b6b; padding: 10px;">
+                                    <strong>접근 권한이 없습니다.</strong><br>
+                                    <small style="color: #8a8fa5;">
+                                        Repository가 Private이거나 API rate limit에 도달했을 수 있습니다.
+                                    </small>
+                                </li>
+                            `;
+                            console.error('접근 권한 없음:', response.status, response.statusText);
+                            return;
+                        } else {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    }
+                    
                     const files = await response.json();
+                    console.log('GitHub API 응답:', files);
+                    
+                    // 응답이 배열이 아닌 경우 (에러 메시지 등)
+                    if (!Array.isArray(files)) {
+                        loading.style.display = 'none';
+                        fileList.innerHTML = `
+                            <li style="color: #ff6b6b; padding: 10px;">
+                                <strong>예상치 못한 응답:</strong><br>
+                                <small style="color: #8a8fa5;">${JSON.stringify(files)}</small>
+                            </li>
+                        `;
+                        console.error('예상치 못한 응답 형식:', files);
+                        return;
+                    }
                     
                     // CSV 파일만 필터링
-                    const csvFiles = files.filter(file => 
+                    let csvFiles = files.filter(file => 
                         file.type === 'file' && file.name.endsWith('.csv')
                     );
+                    
+                    // tt_aimbot_detection_data.csv를 우선순위로 정렬
+                    csvFiles.sort((a, b) => {
+                        const aIsMain = a.name.includes('tt_aimbot_detection_data');
+                        const bIsMain = b.name.includes('tt_aimbot_detection_data');
+                        if (aIsMain && !bIsMain) return -1;
+                        if (!aIsMain && bIsMain) return 1;
+                        // sample 파일은 뒤로
+                        const aIsSample = a.name.includes('sample');
+                        const bIsSample = b.name.includes('sample');
+                        if (aIsSample && !bIsSample) return 1;
+                        if (!aIsSample && bIsSample) return -1;
+                        return a.name.localeCompare(b.name);
+                    });
+                    
+                    console.log('CSV 파일 수:', csvFiles.length);
+                    console.log('정렬된 파일 목록:', csvFiles.map(f => f.name));
                     
                     loading.style.display = 'none';
                     
                     if (csvFiles.length === 0) {
-                        fileList.innerHTML = '<li style="color: #8a8fa5;">CSV 파일을 찾을 수 없습니다.</li>';
+                        if (files.length === 0) {
+                            fileList.innerHTML = `
+                                <li style="color: #8a8fa5; padding: 10px;">
+                                    Repository가 비어있습니다.<br>
+                                    <small>CSV 파일을 업로드해주세요.</small>
+                                </li>
+                            `;
+                        } else {
+                            fileList.innerHTML = `
+                                <li style="color: #8a8fa5; padding: 10px;">
+                                    CSV 파일을 찾을 수 없습니다.<br>
+                                    <small>Repository에 ${files.length}개의 파일이 있지만 CSV 파일이 없습니다.</small>
+                                </li>
+                            `;
+                        }
                         return;
                     }
                     
+                    // 선택된 파일들을 추적하기 위한 Set
+                    this.selectedCSVFiles = new Set();
+                    
                     csvFiles.forEach(file => {
                         const li = document.createElement('li');
-                        li.textContent = file.name;
-                        li.addEventListener('click', () => {
-                            this.loadCSVFromGitHub(file.download_url, file.name);
-                            popup.classList.remove('active');
+                        li.style.display = 'flex';
+                        li.style.alignItems = 'center';
+                        li.style.gap = '10px';
+                        li.style.padding = '8px';
+                        li.style.cursor = 'pointer';
+                        li.style.borderRadius = '4px';
+                        li.addEventListener('mouseenter', () => {
+                            li.style.background = '#2a2f3e';
                         });
+                        li.addEventListener('mouseleave', () => {
+                            li.style.background = 'transparent';
+                        });
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = file.download_url;
+                        checkbox.dataset.filename = file.name;
+                        checkbox.style.cursor = 'pointer';
+                        checkbox.addEventListener('change', (e) => {
+                            if (e.target.checked) {
+                                this.selectedCSVFiles.add(file.download_url);
+                            } else {
+                                this.selectedCSVFiles.delete(file.download_url);
+                            }
+                        });
+                        
+                        const label = document.createElement('label');
+                        label.textContent = file.name;
+                        label.style.cursor = 'pointer';
+                        label.style.flex = '1';
+                        label.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            checkbox.checked = !checkbox.checked;
+                            checkbox.dispatchEvent(new Event('change'));
+                        });
+                        
+                        li.appendChild(checkbox);
+                        li.appendChild(label);
                         fileList.appendChild(li);
                     });
+                    
+                    // 선택한 파일 로드 버튼 이벤트
+                    const loadBtn = document.getElementById('csv-load-selected');
+                    if (loadBtn) {
+                        loadBtn.onclick = () => {
+                            if (this.selectedCSVFiles.size === 0) {
+                                alert('파일을 하나 이상 선택해주세요.');
+                                return;
+                            }
+                            this.loadMultipleCSVFiles();
+                            popup.classList.remove('active');
+                        };
+                    }
                 } catch (error) {
                     console.error('GitHub 파일 목록 가져오기 실패:', error);
                     loading.style.display = 'none';
-                    fileList.innerHTML = '<li style="color: #ff6b6b;">파일 목록을 가져오는 중 오류가 발생했습니다.</li>';
+                    fileList.innerHTML = `
+                        <li style="color: #ff6b6b; padding: 10px;">
+                            <strong>오류 발생:</strong><br>
+                            <small style="color: #8a8fa5;">${error.message || error}</small><br>
+                            <small style="color: #8a8fa5; margin-top: 5px; display: block;">
+                                네트워크 연결을 확인하거나 브라우저 콘솔을 확인해주세요.
+                            </small>
+                        </li>
+                    `;
+                }
+            }
+            
+            async loadMultipleCSVFiles() {
+                const loading = document.getElementById('loading');
+                const selectedFile = document.getElementById('selected-file');
+                
+                if (!this.selectedCSVFiles || this.selectedCSVFiles.size === 0) {
+                    alert('파일을 선택해주세요.');
+                    return;
+                }
+                
+                const fileUrls = Array.from(this.selectedCSVFiles);
+                const fileCount = fileUrls.length;
+                
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.innerHTML = `GitHub에서 ${fileCount}개 CSV 파일 다운로드 중...`;
+                }
+                
+                if (selectedFile) {
+                    selectedFile.textContent = `${fileCount}개 파일 선택됨`;
+                }
+                
+                try {
+                    // Token 가져오기
+                    const token = this.getGitHubToken();
+                    const headers = {};
+                    if (token) {
+                        headers['Authorization'] = `token ${token}`;
+                    }
+                    
+                    // 모든 파일을 병렬로 다운로드
+                    const filePromises = fileUrls.map(async (url) => {
+                        const response = await fetch(url, {
+                            headers: headers
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const text = await response.text();
+                        const filename = url.split('/').pop() || 'unknown.csv';
+                        const blob = new Blob([text], { type: 'text/csv' });
+                        return new File([blob], filename, { type: 'text/csv' });
+                    });
+                    
+                    const files = await Promise.all(filePromises);
+                    
+                    // 모든 파일의 데이터를 병합
+                    await this.loadAndMergeMultipleCSV(files);
+                } catch (error) {
+                    console.error('CSV 파일 다운로드 실패:', error);
+                    if (loading) {
+                        loading.innerHTML = '오류: ' + error.message;
+                    }
+                    alert('CSV 파일을 다운로드하는 중 오류가 발생했습니다: ' + error.message);
+                }
+            }
+            
+            async loadAndMergeMultipleCSV(files) {
+                const loading = document.getElementById('loading');
+                const allRows = [];
+                
+                try {
+                    // 모든 파일을 순차적으로 파싱
+                    for (let i = 0; i < files.length; i++) {
+                        if (loading) {
+                            loading.innerHTML = `파일 파싱 중... (${i + 1}/${files.length})`;
+                        }
+                        
+                        const file = files[i];
+                        const rows = await new Promise((resolve, reject) => {
+                            Papa.parse(file, {
+                                header: true,
+                                skipEmptyLines: true,
+                                complete: (results) => {
+                                    resolve(results.data);
+                                },
+                                error: (error) => {
+                                    reject(error);
+                                }
+                            });
+                        });
+                        
+                        allRows.push(...rows);
+                    }
+                    
+                    if (loading) {
+                        loading.innerHTML = '데이터 병합 및 처리 중...';
+                    }
+                    
+                    // 모든 데이터를 병합하여 처리
+                    await this.processData(allRows);
+                } catch (error) {
+                    console.error('CSV 파일 병합 실패:', error);
+                    if (loading) {
+                        loading.innerHTML = '오류: ' + error.message;
+                    }
+                    alert('CSV 파일을 처리하는 중 오류가 발생했습니다: ' + error.message);
                 }
             }
 
@@ -1778,6 +2111,16 @@ Three.js · PapaParse · Pure JavaScript`
                     const events = [];
                     const aimIndex = new Map(); // name -> [{yaw,pitch,time,type}]
                     
+                    // match_id 추출 (첫 번째 행에서)
+                    let matchId = null;
+                    if (rows.length > 0 && rows[0].match_id !== undefined) {
+                        matchId = rows[0].match_id !== null ? String(rows[0].match_id).trim() : null;
+                    }
+                    
+                    // 나중에 조인될 데이터를 저장할 맵 (player_id -> metadata)
+                    // CSV에 직접 포함되어 있을 수도 있고, 나중에 조인될 수도 있음
+                    const playerJoinData = new Map(); // player_id -> {team, map, os, input_device, character}
+                    
                     // 맵 경계 추적용 (별도 배열 없이 직접 계산)
                     let minX = Infinity, maxX = -Infinity;
                     let minY = Infinity, maxY = -Infinity;
@@ -1806,12 +2149,18 @@ Three.js · PapaParse · Pure JavaScript`
                         chunk.forEach((row, localIdx) => {
                         const idx = chunkStart + localIdx;
                         
-                        const tickStr = row.tick && row.tick.trim ? row.tick.trim() : null;
-                        if (!tickStr) return;
+                        // 새로운 데이터 스키마: tick 필수
+                        const tickStr = row.tick && row.tick.trim ? row.tick.trim() : (row.tick !== undefined && row.tick !== null ? String(row.tick) : null);
+                        if (!tickStr || tickStr === '') return;
                         
                         const tick = parseInt(tickStr);
-                        const gameTime = parseFloat(row.game_time || 0);
+                        if (Number.isNaN(tick)) return;
                         
+                        // timestamp를 초 단위로 변환 (ms -> s)
+                        const timestampMs = parseFloat(row.timestamp || 0);
+                        const gameTime = timestampMs > 0 ? timestampMs / 1000 : 0;
+                        
+                        // tick이 변경되면 이전 tick 데이터 저장
                         if (currentTick !== tick && currentTick !== null && tickData.players && tickData.players.length) {
                             positions.push({
                                 tick: currentTick,
@@ -1824,123 +2173,173 @@ Three.js · PapaParse · Pure JavaScript`
                         currentTick = tick;
                         tickData.game_time = gameTime;
                         
-                        const x = row.X && row.X.trim ? row.X.trim() : null;
-                        const y = row.Y && row.Y.trim ? row.Y.trim() : null;
-                        const z = row.Z && row.Z.trim ? row.Z.trim() : null;
-                        if (x && y && z && row.name && row.name.trim && row.name.trim()) {
+                        // 플레이어 위치 데이터 처리 (새 스키마: player_id, X, Y, Z)
+                        const x = row.X !== undefined && row.X !== null ? String(row.X).trim() : null;
+                        const y = row.Y !== undefined && row.Y !== null ? String(row.Y).trim() : null;
+                        const z = row.Z !== undefined && row.Z !== null ? String(row.Z).trim() : null;
+                        const playerId = row.player_id !== undefined && row.player_id !== null ? String(row.player_id).trim() : null;
+                        
+                        if (x && y && z && playerId && playerId !== '') {
                             const posX = parseFloat(x);
                             const posY = parseFloat(y);
                             const posZ = parseFloat(z);
                             
-                            // 맵 경계 직접 업데이트 (배열 저장 불필요)
-                            if (!Number.isNaN(posX)) {
+                            if (!Number.isNaN(posX) && !Number.isNaN(posY) && !Number.isNaN(posZ)) {
+                                // 맵 경계 직접 업데이트
                                 if (posX < minX) minX = posX;
                                 if (posX > maxX) maxX = posX;
-                            }
-                            if (!Number.isNaN(posY)) {
                                 if (posY < minY) minY = posY;
                                 if (posY > maxY) maxY = posY;
-                            }
-                            if (!Number.isNaN(posZ)) {
                                 if (posZ < minZ) minZ = posZ;
                                 if (posZ > maxZ) maxZ = posZ;
-                            }
-                            
-                            tickData.players = tickData.players || [];
-                            // yaw, pitch 정보도 수집 (플레이어 데이터에) - 새 데이터는 각 틱별로 모든 플레이어의 yaw/pitch가 있음
-                            const yawStr = row.yaw && row.yaw.trim ? row.yaw.trim() : null;
-                            const pitchStr = row.pitch && row.pitch.trim ? row.pitch.trim() : null;
-                            // attacker_yaw/pitch는 fallback으로만 사용 (킬 이벤트 시)
-                            const yaw = yawStr ? parseFloat(yawStr) : (row.attacker_yaw && row.attacker_yaw.trim ? parseFloat(row.attacker_yaw.trim()) : null);
-                            const pitch = pitchStr ? parseFloat(pitchStr) : (row.attacker_pitch && row.attacker_pitch.trim ? parseFloat(row.attacker_pitch.trim()) : null);
-                            
-                            tickData.players.push({
-                                name: row.name.trim(),
-                            team: (row.team_name && row.team_name.trim ? row.team_name.trim() : '') || '',
-                                position: [posX, posZ, posY],
-                                health: parseFloat(row.health || 100),
-                                round: parseInt(row.round || 1),
-                            weapon: (row.weapon && row.weapon.trim ? row.weapon.trim() : null),
-                                yaw: !Number.isNaN(yaw) ? yaw : null,
-                                pitch: !Number.isNaN(pitch) ? pitch : null
-                            });
-                        }
-                        
-                        if (row.event && row.event.trim && row.event.trim()) {
-                            const eventType = row.event.trim().toLowerCase();
-                            
-                            // 킬 이벤트 중복 체크: 같은 tick의 킬 이벤트가 이미 있으면 추가하지 않음
-                            let shouldAddEvent = true;
-                            if (eventType.includes('kill') || eventType.includes('died')) {
-                                const attackerName = row.attacker_name && row.attacker_name.trim ? row.attacker_name.trim() : null;
-                                const victimName = row.victim_name && row.victim_name.trim ? row.victim_name.trim() : null;
-                                const existingKill = events.find(e => 
-                                    e.tick === tick && 
-                                    (e.event_type_lower && (e.event_type_lower.includes('kill') || e.event_type_lower.includes('died'))) &&
-                                    e.attacker && e.attacker.name === attackerName &&
-                                    e.victim && e.victim.name === victimName
-                                );
-                                if (existingKill) {
-                                    // 이미 같은 킬 이벤트가 있으면 추가하지 않음
-                                    shouldAddEvent = false;
+                                
+                                tickData.players = tickData.players || [];
+                                
+                                // yaw, pitch 정보 수집
+                                const yawStr = row.yaw !== undefined && row.yaw !== null ? String(row.yaw).trim() : null;
+                                const pitchStr = row.pitch !== undefined && row.pitch !== null ? String(row.pitch).trim() : null;
+                                const yaw = yawStr && yawStr !== '' ? parseFloat(yawStr) : null;
+                                const pitch = pitchStr && pitchStr !== '' ? parseFloat(pitchStr) : null;
+                                
+                                // health 정보
+                                const health = row.health !== undefined && row.health !== null ? parseInt(String(row.health)) : 100;
+                                
+                                // weapon 정보 (equipped_weapon_id 또는 event_src_id)
+                                const weaponId = row.equipped_weapon_id !== undefined && row.equipped_weapon_id !== null ? 
+                                    parseInt(String(row.equipped_weapon_id)) : 
+                                    (row.event_src_id !== undefined && row.event_src_id !== null ? parseInt(String(row.event_src_id)) : null);
+                                
+                                // 조인 데이터 확인 (CSV에 직접 포함되어 있거나 나중에 조인될 수 있음)
+                                let joinData = playerJoinData.get(playerId);
+                                if (!joinData) {
+                                    // CSV에서 직접 읽을 수 있는 경우 (나중에 컬럼 추가 예정)
+                                    joinData = {
+                                        team: row.team || row.team_name || '',
+                                        map: row.map || row.map_name || null,
+                                        os: row.os || row.os_type || null,
+                                        input_device: row.input_device || row.input_device_type || null,
+                                        character: row.character || row.character_name || null
+                                    };
+                                    playerJoinData.set(playerId, joinData);
                                 }
-                            }
-                            
-                            if (shouldAddEvent) {
-                                events.push({
-                                tick: tick,
-                                game_time: gameTime,
-                                event_type: row.event.trim(),
-                                event_type_lower: eventType,
-                            attacker: {
-                                    name: (row.attacker_name && row.attacker_name.trim ? row.attacker_name.trim() : null),
-                                    team: (row.attacker_team_name && row.attacker_team_name.trim ? row.attacker_team_name.trim() : null),
-                                    position: [
-                                        (row.attacker_X && row.attacker_X.trim ? parseFloat(row.attacker_X) : null),
-                                        (row.attacker_Z && row.attacker_Z.trim ? parseFloat(row.attacker_Z) : null),
-                                        (row.attacker_Y && row.attacker_Y.trim ? parseFloat(row.attacker_Y) : null)
-                                    ],
-                                    weapon: (row.weapon && row.weapon.trim ? row.weapon.trim() : null)
-                                },
-                                victim: {
-                                    name: (row.victim_name && row.victim_name.trim ? row.victim_name.trim() : null),
-                                    team: (row.victim_team_name && row.victim_team_name.trim ? row.victim_team_name.trim() : null),
-                                    position: [
-                                        (row.victim_X && row.victim_X.trim ? parseFloat(row.victim_X) : null),
-                                        (row.victim_Z && row.victim_Z.trim ? parseFloat(row.victim_Z) : null),
-                                        (row.victim_Y && row.victim_Y.trim ? parseFloat(row.victim_Y) : null)
-                                    ]
-                                },
-                            weapon: (row.weapon && row.weapon.trim ? row.weapon.trim() : null),
-                            headshot: (row.headshot && row.headshot.trim ? row.headshot.trim().toLowerCase() === 'true' : false)
+                                
+                                tickData.players.push({
+                                    name: playerId, // player_id를 name으로 사용
+                                    team: joinData.team || '', // 조인된 팀 정보
+                                    position: [posX, posZ, posY], // Three.js 좌표계: X, Z, Y
+                                    health: !Number.isNaN(health) ? health : 100,
+                                    round: 1, // 새 데이터에는 round 정보가 없음
+                                    weapon: !Number.isNaN(weaponId) ? weaponId : null,
+                                    yaw: !Number.isNaN(yaw) ? yaw : null,
+                                    pitch: !Number.isNaN(pitch) ? pitch : null,
+                                    // 나중에 조인될 정보들
+                                    map: joinData.map || null,
+                                    os: joinData.os || null,
+                                    input_device: joinData.input_device || null,
+                                    character: joinData.character || null
                                 });
                             }
-
-                            // 킬 이벤트의 공격자 Aim 데이터 수집 (나중에 일괄 처리)
-                            if (eventType.includes('kill') || eventType.includes('died')) {
-                            const yawStr = row.attacker_yaw && row.attacker_yaw.trim ? row.attacker_yaw.trim() : null;
-                            const pitchStr = row.attacker_pitch && row.attacker_pitch.trim ? row.attacker_pitch.trim() : null;
-                            const attackerName = row.attacker_name && row.attacker_name.trim ? row.attacker_name.trim() : null;
-                                if (attackerName && yawStr && pitchStr) {
-                                    const yaw = parseFloat(yawStr);
-                                    const pitch = parseFloat(pitchStr);
-                                    if (!Number.isNaN(yaw) && !Number.isNaN(pitch)) {
-                                        if (!aimIndex.has(attackerName)) aimIndex.set(attackerName, []);
-                                        // 중복 체크: 같은 tick의 킬이 이미 있으면 추가하지 않음
-                                        const existingKill = aimIndex.get(attackerName).find(a => 
-                                            a.type === 'kill' && a.tick === tick && Math.abs(a.time - gameTime) < 0.01
-                                        );
-                                        if (!existingKill) {
-                                            // 임시로 저장 (나중에 일괄 처리)
-                                            aimIndex.get(attackerName).push({ 
-                                                yaw, pitch, time: gameTime, tick: tick, type: 'kill',
-                                                _temp: true // 임시 표시
-                                            });
+                        }
+                        
+                        // 이벤트 처리 (새 스키마: event_type, event_src_player_id, event_trg_player_id)
+                        const eventType = row.event_type !== undefined && row.event_type !== null ? parseInt(String(row.event_type)) : null;
+                        if (!Number.isNaN(eventType) && eventType > 0) {
+                            // event_type: 1:fire, 2:hit, 3:kill
+                            let eventTypeStr = '';
+                            if (eventType === 1) eventTypeStr = 'fire';
+                            else if (eventType === 2) eventTypeStr = 'hit';
+                            else if (eventType === 3) eventTypeStr = 'kill';
+                            
+                            if (eventTypeStr) {
+                                const attackerId = row.event_src_player_id !== undefined && row.event_src_player_id !== null ? 
+                                    String(row.event_src_player_id).trim() : null;
+                                const victimId = row.event_trg_player_id !== undefined && row.event_trg_player_id !== null ? 
+                                    String(row.event_trg_player_id).trim() : null;
+                                
+                                // 킬 이벤트 중복 체크
+                                let shouldAddEvent = true;
+                                if (eventType === 3 && attackerId && victimId) {
+                                    const existingKill = events.find(e => 
+                                        e.tick === tick && 
+                                        e.event_type_lower === 'kill' &&
+                                        e.attacker && e.attacker.name === attackerId &&
+                                        e.victim && e.victim.name === victimId
+                                    );
+                                    if (existingKill) {
+                                        shouldAddEvent = false;
+                                    }
+                                }
+                                
+                                if (shouldAddEvent) {
+                                    // 공격자 위치 찾기 (같은 tick의 플레이어 데이터에서)
+                                    let attackerPos = [null, null, null];
+                                    if (attackerId) {
+                                        const attackerPlayer = tickData.players.find(p => p.name === attackerId);
+                                        if (attackerPlayer && attackerPlayer.position) {
+                                            attackerPos = attackerPlayer.position;
+                                        }
+                                    }
+                                    
+                                    // 피격자 위치 찾기
+                                    let victimPos = [null, null, null];
+                                    if (victimId) {
+                                        const victimPlayer = tickData.players.find(p => p.name === victimId);
+                                        if (victimPlayer && victimPlayer.position) {
+                                            victimPos = victimPlayer.position;
+                                        }
+                                    }
+                                    
+                                    // weapon 정보
+                                    const eventWeaponId = row.event_src_id !== undefined && row.event_src_id !== null ? 
+                                        parseInt(String(row.event_src_id)) : null;
+                                    
+                                    // headshot 정보
+                                    const headshot = row.head_shot_yn !== undefined && row.head_shot_yn !== null ? 
+                                        (parseInt(String(row.head_shot_yn)) === 1) : false;
+                                    
+                                    events.push({
+                                        tick: tick,
+                                        game_time: gameTime,
+                                        event_type: eventTypeStr,
+                                        event_type_lower: eventTypeStr.toLowerCase(),
+                                        attacker: {
+                                            name: attackerId,
+                                            team: '',
+                                            position: attackerPos,
+                                            weapon: !Number.isNaN(eventWeaponId) ? eventWeaponId : null
+                                        },
+                                        victim: {
+                                            name: victimId,
+                                            team: '',
+                                            position: victimPos
+                                        },
+                                        weapon: !Number.isNaN(eventWeaponId) ? eventWeaponId : null,
+                                        headshot: headshot
+                                    });
+                                    
+                                    // 킬 이벤트의 공격자 Aim 데이터 수집
+                                    if (eventType === 3 && attackerId) {
+                                        const attackerPlayer = tickData.players.find(p => p.name === attackerId);
+                                        if (attackerPlayer && attackerPlayer.yaw !== null && attackerPlayer.pitch !== null) {
+                                            if (!aimIndex.has(attackerId)) aimIndex.set(attackerId, []);
+                                            const existingKill = aimIndex.get(attackerId).find(a => 
+                                                a.type === 'kill' && a.tick === tick && Math.abs(a.time - gameTime) < 0.01
+                                            );
+                                            if (!existingKill) {
+                                                aimIndex.get(attackerId).push({ 
+                                                    yaw: attackerPlayer.yaw, 
+                                                    pitch: attackerPlayer.pitch, 
+                                                    time: gameTime, 
+                                                    tick: tick, 
+                                                    type: 'kill',
+                                                    _temp: true
+                                                });
+                                            }
                                         }
                                     }
                                 }
                             }
-                            }
+                        }
                         });
                         
                         // 진행 상황 업데이트 및 UI 차단 방지
@@ -2012,7 +2411,23 @@ Three.js · PapaParse · Pure JavaScript`
                         if (pl.name) {
                             players.add(pl.name);
                             if (!playerStats.has(pl.name)) {
-                                playerStats.set(pl.name, { kills: 0, deaths: 0, team: pl.team });
+                                // 플레이어 통계 초기화 (나중에 조인될 정보들 포함)
+                                playerStats.set(pl.name, { 
+                                    kills: 0, 
+                                    deaths: 0, 
+                                    team: pl.team || '',
+                                    map: pl.map || null,
+                                    os: pl.os || null,
+                                    input_device: pl.input_device || null,
+                                    character: pl.character || null
+                                });
+                            } else {
+                                // 이미 있는 경우에도 추가 정보 업데이트 (첫 번째로 발견된 값 사용)
+                                const stats = playerStats.get(pl.name);
+                                if (!stats.map && pl.map) stats.map = pl.map;
+                                if (!stats.os && pl.os) stats.os = pl.os;
+                                if (!stats.input_device && pl.input_device) stats.input_device = pl.input_device;
+                                if (!stats.character && pl.character) stats.character = pl.character;
                             }
                             if (!playerIndex.has(pl.name)) playerIndex.set(pl.name, []);
                             playerIndex.get(pl.name).push({ tick: p.tick, time: p.game_time, position: pl.position });
@@ -2070,6 +2485,35 @@ Three.js · PapaParse · Pure JavaScript`
                         }
                     });
                     
+                    // 플레이어별 추가 메타데이터 수집 (OS, 입력 디바이스, 캐릭터 등)
+                    const playerMetadata = new Map();
+                    positions.forEach(p => {
+                        p.players.forEach(pl => {
+                            if (pl.name && !playerMetadata.has(pl.name)) {
+                                playerMetadata.set(pl.name, {
+                                    team: pl.team || '',
+                                    map: pl.map || null,
+                                    os: pl.os || null,
+                                    input_device: pl.input_device || null,
+                                    character: pl.character || null
+                                });
+                            }
+                        });
+                    });
+                    
+                    // 고유한 팀 목록 수집
+                    const uniqueTeams = new Set();
+                    playerStats.forEach(stats => {
+                        if (stats.team) uniqueTeams.add(stats.team);
+                    });
+                    
+                    // 고유한 맵 목록 수집
+                    const uniqueMaps = new Set();
+                    playerMetadata.forEach(meta => {
+                        if (meta.map) uniqueMaps.add(meta.map);
+                    });
+                    if (this.detectedMapName) uniqueMaps.add(this.detectedMapName);
+                    
                     this.data = {
                         metadata: {
                             total_ticks: positions.length,
@@ -2084,12 +2528,37 @@ Three.js · PapaParse · Pure JavaScript`
                             },
                             players: Array.from(players).sort(),
                             playerStats: Object.fromEntries(playerStats),
-                            teams: ['CT', 'TERRORIST'],
-                            mapName: this.detectedMapName || 'Unknown'
+                            playerMetadata: Object.fromEntries(playerMetadata), // 추가 메타데이터
+                            teams: Array.from(uniqueTeams).length > 0 ? Array.from(uniqueTeams) : ['CT', 'TERRORIST'], // 동적 팀 목록
+                            maps: Array.from(uniqueMaps), // 맵 목록
+                            mapName: this.detectedMapName || 'Unknown',
+                            // 나중에 조인될 정보들을 위한 구조
+                            matchInfo: {
+                                match_id: matchId, // CSV에서 추출한 match_id
+                                os_distribution: {}, // OS별 분포
+                                input_device_distribution: {}, // 입력 디바이스별 분포
+                                character_distribution: {} // 캐릭터별 분포
+                            }
                         },
                         positions: positions,
                         events: events
                     };
+                    
+                    // OS, 입력 디바이스, 캐릭터 분포 계산
+                    playerMetadata.forEach(meta => {
+                        if (meta.os) {
+                            this.data.metadata.matchInfo.os_distribution[meta.os] = 
+                                (this.data.metadata.matchInfo.os_distribution[meta.os] || 0) + 1;
+                        }
+                        if (meta.input_device) {
+                            this.data.metadata.matchInfo.input_device_distribution[meta.input_device] = 
+                                (this.data.metadata.matchInfo.input_device_distribution[meta.input_device] || 0) + 1;
+                        }
+                        if (meta.character) {
+                            this.data.metadata.matchInfo.character_distribution[meta.character] = 
+                                (this.data.metadata.matchInfo.character_distribution[meta.character] || 0) + 1;
+                        }
+                    });
                     this.playerIndex = playerIndex;
                     // aimIndex 정렬 (시간순)
                     aimIndex.forEach((arr, name) => {
@@ -2097,10 +2566,16 @@ Three.js · PapaParse · Pure JavaScript`
                     });
                     this.aimIndex = aimIndex;
                     
+                    // window.simulation에 인스턴스 할당 (디버깅용)
+                    window.simulation = this;
+                    
                     console.log('데이터 처리 완료:', this.data.metadata);
                     console.log('맵 경계:', this.mapBounds);
                     console.log('Positions 수:', positions.length);
                     console.log('Events 수:', events.length);
+                    console.log('로드된 데이터:', window.simulation?.data?.metadata);
+                    console.log('Match ID:', matchId);
+                    console.log('조인 데이터 준비 완료 (팀, 맵, OS, 입력디바이스, 캐릭터)');
                     
                     if (positions.length === 0) {
                         console.error('Positions가 비어있습니다. 데이터 포맷을 확인하세요.');
@@ -2114,6 +2589,109 @@ Three.js · PapaParse · Pure JavaScript`
                     this.analyzeAndRenderPaths();
                     this.populateKillPicker();
                     this.populatePlayerPicker();
+            }
+            
+            /**
+             * 나중에 조인될 데이터를 추가하는 함수
+             * @param {Object} joinData - player_id를 키로 하는 조인 데이터 객체
+             * @example
+             * enrichPlayerData({
+             *   "-479": { team: "Team A", os: "Windows", input_device: "keyboard_mouse", character: "Character1" },
+             *   "-481": { team: "Team B", os: "Mac", input_device: "console", character: "Character2" }
+             * })
+             */
+            enrichPlayerData(joinData) {
+                if (!this.data || !joinData) return;
+                
+                console.log('플레이어 데이터 조인 시작:', joinData);
+                
+                // 각 틱의 플레이어 데이터 업데이트
+                this.data.positions.forEach(tickData => {
+                    tickData.players.forEach(player => {
+                        const joinInfo = joinData[player.name];
+                        if (joinInfo) {
+                            if (joinInfo.team !== undefined) player.team = joinInfo.team;
+                            if (joinInfo.map !== undefined) player.map = joinInfo.map;
+                            if (joinInfo.os !== undefined) player.os = joinInfo.os;
+                            if (joinInfo.input_device !== undefined) player.input_device = joinInfo.input_device;
+                            if (joinInfo.character !== undefined) player.character = joinInfo.character;
+                        }
+                    });
+                });
+                
+                // 메타데이터 업데이트
+                Object.keys(joinData).forEach(playerId => {
+                    if (this.data.metadata.playerMetadata[playerId]) {
+                        Object.assign(this.data.metadata.playerMetadata[playerId], joinData[playerId]);
+                    } else {
+                        this.data.metadata.playerMetadata[playerId] = joinData[playerId];
+                    }
+                    
+                    // playerStats도 업데이트
+                    if (this.data.metadata.playerStats[playerId]) {
+                        if (joinData[playerId].team !== undefined) {
+                            this.data.metadata.playerStats[playerId].team = joinData[playerId].team;
+                        }
+                    }
+                });
+                
+                // 팀 목록 재수집
+                const uniqueTeams = new Set();
+                Object.values(this.data.metadata.playerStats).forEach(stats => {
+                    if (stats.team) uniqueTeams.add(stats.team);
+                });
+                this.data.metadata.teams = Array.from(uniqueTeams).length > 0 ? Array.from(uniqueTeams) : ['CT', 'TERRORIST'];
+                
+                // 맵 목록 재수집
+                const uniqueMaps = new Set();
+                Object.values(this.data.metadata.playerMetadata).forEach(meta => {
+                    if (meta.map) uniqueMaps.add(meta.map);
+                });
+                if (this.detectedMapName) uniqueMaps.add(this.detectedMapName);
+                this.data.metadata.maps = Array.from(uniqueMaps);
+                
+                // 분포 재계산
+                this.recalculateDistributions();
+                
+                // UI 업데이트
+                this.updateUI();
+                this.populatePlayerPicker();
+                
+                console.log('플레이어 데이터 조인 완료');
+            }
+            
+            /**
+             * OS, 입력 디바이스, 캐릭터 분포를 재계산하는 함수
+             */
+            recalculateDistributions() {
+                if (!this.data) return;
+                
+                const osDist = {};
+                const inputDeviceDist = {};
+                const characterDist = {};
+                
+                Object.values(this.data.metadata.playerMetadata).forEach(meta => {
+                    if (meta.os) {
+                        osDist[meta.os] = (osDist[meta.os] || 0) + 1;
+                    }
+                    if (meta.input_device) {
+                        inputDeviceDist[meta.input_device] = (inputDeviceDist[meta.input_device] || 0) + 1;
+                    }
+                    if (meta.character) {
+                        characterDist[meta.character] = (characterDist[meta.character] || 0) + 1;
+                    }
+                });
+                
+                this.data.metadata.matchInfo.os_distribution = osDist;
+                this.data.metadata.matchInfo.input_device_distribution = inputDeviceDist;
+                this.data.metadata.matchInfo.character_distribution = characterDist;
+                
+                console.log('분포 재계산 완료:', {
+                    os: osDist,
+                    input_device: inputDeviceDist,
+                    character: characterDist
+                });
+            }
                     
                     // POC: CSV 로드 후 자동으로 맵 이미지 로드
                     // 맵 감지와 상관없이 항상 mapImageSettings 이미지 로드 시도
@@ -3454,15 +4032,10 @@ Three.js · PapaParse · Pure JavaScript`
                 const cfg = this.mapImageSettings;
                 texture.wrapS = THREE.ClampToEdgeWrapping;
                 texture.wrapT = THREE.ClampToEdgeWrapping;
-                if (cfg.flipY !== undefined) {
-                    texture.flipY = cfg.flipY;
-                }
                 texture.repeat.set(cfg.repeatX ?? 1, cfg.repeatY ?? 1);
                 texture.offset.set(cfg.offsetX ?? 0, cfg.offsetY ?? 0);
                 texture.rotation = cfg.textureRotation ?? 0;
                 texture.center.set(0.5, 0.5);
-                texture.encoding = THREE.sRGBEncoding;
-                texture.needsUpdate = true;
             }
             
             renderMapImage() {
@@ -3490,13 +4063,13 @@ Three.js · PapaParse · Pure JavaScript`
                 // 평면 지오메트리 생성 (기본 Y-Z 평면)
                 const planeGeometry = new THREE.PlaneGeometry(mapWidth, mapDepth);
                 
-                // 투명도 설정
-                const opacity = cfg.opacity !== undefined ? cfg.opacity : 0.9;
+                // 투명도 (기본값 80%)
+                const opacity = 0.8;
                 
                 // 머티리얼 생성
                 const material = new THREE.MeshBasicMaterial({
                     map: this.mapImageTexture,
-                    transparent: opacity < 1.0,
+                    transparent: true,
                     opacity: opacity,
                     side: THREE.DoubleSide
                 });
@@ -4011,10 +4584,27 @@ Three.js · PapaParse · Pure JavaScript`
                 document.getElementById('game-length').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                 document.getElementById('match-length').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
                 
+                // Match ID 표시
+                const matchIdElement = document.getElementById('match-id');
+                if (matchIdElement && m.matchInfo && m.matchInfo.match_id !== null) {
+                    matchIdElement.textContent = m.matchInfo.match_id;
+                } else if (matchIdElement) {
+                    matchIdElement.textContent = '-';
+                }
+                
+                // 시작 시간 (timestamp에서 날짜 추출)
                 const startDate = new Date();
-                startDate.setHours(8, 55, 0);
-                document.getElementById('start-time').textContent = startDate.toLocaleDateString('ko-KR');
-                document.getElementById('match-start-time').textContent = startDate.toLocaleDateString('ko-KR');
+                startDate.setTime(m.time_range.min * 1000);
+                const startTimeElement = document.getElementById('start-time');
+                if (startTimeElement) {
+                    startTimeElement.textContent = startDate.toLocaleDateString('ko-KR') + ' ' + startDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                }
+                
+                // Match Start Time
+                const matchStartTimeElement = document.getElementById('match-start-time');
+                if (matchStartTimeElement) {
+                    matchStartTimeElement.textContent = startDate.toLocaleDateString('ko-KR') + ' ' + startDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                }
 
                 const playerList = document.getElementById('player-list');
                 playerList.innerHTML = '';
@@ -4354,7 +4944,10 @@ Three.js · PapaParse · Pure JavaScript`
 
                 // 플레이어 렌더링
                 tickData.players.forEach(player => {
-                    const isCT = player.team === 'CT';
+                    // 새 데이터에는 team 정보가 없으므로 player_id를 기반으로 색상 구분
+                    // player_id가 음수면 한 팀, 양수면 다른 팀으로 가정
+                    const playerIdNum = parseInt(player.name) || 0;
+                    const isCT = player.team === 'CT' || (player.team === '' && playerIdNum < 0);
                     const color = isCT ? 0x5b9bd5 : 0xff6b6b;
                     
                     // CT는 원형, T는 삼각형

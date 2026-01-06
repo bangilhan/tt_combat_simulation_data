@@ -871,6 +871,36 @@
             
             // 추가 보장을 위해 약간의 지연 후 실행
             setTimeout(initDashboard, 100);
+            
+            // CombatSimulation 인스턴스가 생성된 후 Dashboard 렌더링 보장
+            let renderAttempts = 0;
+            const maxAttempts = 10;
+            const checkAndRender = setInterval(() => {
+                if (window.simulation && typeof window.simulation.renderDashboard === 'function') {
+                    window.simulation.renderDashboard();
+                    clearInterval(checkAndRender);
+                } else {
+                    renderAttempts++;
+                    if (renderAttempts >= maxAttempts) {
+                        clearInterval(checkAndRender);
+                        // 최소한 기본 내용이라도 표시
+                        const content = document.getElementById('dashboard-content');
+                        if (content && !content.innerHTML.trim()) {
+                            content.innerHTML = `
+                                <h1>CRUMB — Combat Replay Unified Monitoring & Behavior-analysis</h1>
+                                <p>"Follow every trace." 🍞</p>
+                                <h2>🚀 빠른 시작</h2>
+                                <ol>
+                                    <li><strong>3D 시뮬레이션 분석</strong> 탭 클릭</li>
+                                    <li>좌측 사이드바 <strong>"파일 선택"</strong> 버튼 클릭</li>
+                                    <li>GitHub CSV 파일 선택</li>
+                                    <li>3D 시뮬레이션 자동 시작</li>
+                                </ol>
+                            `;
+                        }
+                    }
+                }
+            }, 200);
         })();
     </script>
 

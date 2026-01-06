@@ -2447,17 +2447,8 @@ Three.js · PapaParse · Pure JavaScript`
                     // 맵 경계 계산 (이미 계산됨)
                     let detectedMapName = null;
                     if (minX !== Infinity && maxX !== -Infinity) {
-                        // 좌표 정규화를 위한 스케일 팩터 계산
-                        const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-                        // 목표 크기: 2000 단위로 정규화 (너무 크지 않게)
-                        const targetSize = 2000;
-                        const scaleFactor = maxDim > targetSize ? targetSize / maxDim : 1.0;
-                        
-                        // 정규화된 경계 계산
-                        const normalizedWidth = (maxX - minX) * scaleFactor;
-                        const normalizedHeight = (maxY - minY) * scaleFactor;
-                        const normalizedDepth = (maxZ - minZ) * scaleFactor;
-                        
+                        // 실제 플레이어 경로 영역을 경계로 사용 (전체 맵이 아닌)
+                        // 나중에 renderAllPlayerPaths에서 실제 경로 경계를 계산하여 업데이트
                         this.mapBounds = {
                             minX: minX,
                             maxX: maxX,
@@ -2471,11 +2462,13 @@ Three.js · PapaParse · Pure JavaScript`
                             width: maxX - minX,
                             height: maxY - minY,
                             depth: maxZ - minZ,
-                            // 정규화 정보 추가
-                            scaleFactor: scaleFactor,
-                            normalizedWidth: normalizedWidth,
-                            normalizedHeight: normalizedHeight,
-                            normalizedDepth: normalizedDepth
+                            // 실제 경로 경계 (나중에 업데이트됨)
+                            pathMinX: minX,
+                            pathMaxX: maxX,
+                            pathMinY: minY,
+                            pathMaxY: maxY,
+                            pathMinZ: minZ,
+                            pathMaxZ: maxZ
                         };
                         
                         // 플레이어 위치 범위를 기반으로 맵 추론
@@ -5363,22 +5356,33 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 const ctx = minimapCanvas.getContext('2d');
                 const bounds = this.mapBounds;
-                const scaleX = minimapCanvas.width / bounds.width;
-                const scaleY = minimapCanvas.height / bounds.depth;
+                
+                // 실제 플레이어 경로 경계 사용 (전체 맵이 아닌)
+                const pathWidth = bounds.pathWidth || bounds.width;
+                const pathDepth = bounds.pathDepth || bounds.depth;
+                const pathMinX = bounds.pathMinX !== undefined ? bounds.pathMinX : bounds.minX;
+                const pathMinZ = bounds.pathMinZ !== undefined ? bounds.pathMinZ : bounds.minZ;
+                const pathMaxX = bounds.pathMaxX !== undefined ? bounds.pathMaxX : bounds.maxX;
+                const pathMaxZ = bounds.pathMaxZ !== undefined ? bounds.pathMaxZ : bounds.maxZ;
+                
+                const scaleX = minimapCanvas.width / pathWidth;
+                const scaleY = minimapCanvas.height / pathDepth;
                 const scale = Math.min(scaleX, scaleY);
                 
                 // 배경
                 ctx.fillStyle = '#1a1f2e';
                 ctx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
                 
-                // 맵 경계
+                // 실제 플레이어 경로 경계 박스 표시
                 ctx.strokeStyle = '#4a90e2';
                 ctx.lineWidth = 2;
+                const offsetX = (minimapCanvas.width - pathWidth * scale) / 2;
+                const offsetY = (minimapCanvas.height - pathDepth * scale) / 2;
                 ctx.strokeRect(
-                    (minimapCanvas.width - bounds.width * scale) / 2,
-                    (minimapCanvas.height - bounds.depth * scale) / 2,
-                    bounds.width * scale,
-                    bounds.depth * scale
+                    offsetX,
+                    offsetY,
+                    pathWidth * scale,
+                    pathDepth * scale
                 );
                 
                 // 플레이어 경로를 미니맵에 그리기 (전체 경로 - 반투명)
@@ -5393,12 +5397,9 @@ Three.js · PapaParse · Pure JavaScript`
                         ctx.lineWidth = 1;
                         ctx.beginPath();
                         
-                        const offsetX = (minimapCanvas.width - bounds.width * scale) / 2;
-                        const offsetY = (minimapCanvas.height - bounds.depth * scale) / 2;
-                        
                         for (let i = 0; i < positions.length; i += 3) {
-                            const x = offsetX + (positions[i] - bounds.minX) * scale;
-                            const y = offsetY + (positions[i + 2] - bounds.minZ) * scale; // Three.js는 [X, Z, Y] 순서
+                            const x = offsetX + (positions[i] - pathMinX) * scale;
+                            const y = offsetY + (positions[i + 2] - pathMinZ) * scale; // Three.js는 [X, Z, Y] 순서
                             
                             if (i === 0) {
                                 ctx.moveTo(x, y);
@@ -5420,8 +5421,8 @@ Three.js · PapaParse · Pure JavaScript`
                         tickData.players.forEach(player => {
                             if (!player.position || !Array.isArray(player.position)) return;
                             
-                            const x = offsetX + (player.position[0] - bounds.minX) * scale;
-                            const y = offsetY + (player.position[2] - bounds.minZ) * scale;
+                            const x = offsetX + (player.position[0] - pathMinX) * scale;
+                            const y = offsetY + (player.position[2] - pathMinZ) * scale;
                             
                             // 플레이어 위치를 더 크고 명확하게 표시
                             const isCT = !player.name.startsWith('-');
@@ -5438,10 +5439,12 @@ Three.js · PapaParse · Pure JavaScript`
                     }
                 }
                 
-                // 카메라 시야 표시 (간단한 원)
+                // 카메라 시야 표시 (간단한 원) - 실제 경로 중심 사용
                 if (this.mapBounds) {
-                    const centerX = (minimapCanvas.width - bounds.width * scale) / 2 + (bounds.centerX - bounds.minX) * scale;
-                    const centerY = (minimapCanvas.height - bounds.depth * scale) / 2 + (bounds.centerZ - bounds.minZ) * scale;
+                    const pathCenterX = bounds.pathCenterX !== undefined ? bounds.pathCenterX : bounds.centerX;
+                    const pathCenterZ = bounds.pathCenterZ !== undefined ? bounds.pathCenterZ : bounds.centerZ;
+                    const centerX = offsetX + (pathCenterX - pathMinX) * scale;
+                    const centerY = offsetY + (pathCenterZ - pathMinZ) * scale;
                     ctx.strokeStyle = '#ffff00';
                     ctx.lineWidth = 1;
                     ctx.setLineDash([5, 5]);
@@ -5455,74 +5458,72 @@ Three.js · PapaParse · Pure JavaScript`
             fitToView() {
                 if (!this.data || !this.data.positions || !this.mapBounds) return;
                 
-                // 현재 틱의 모든 플레이어 위치를 기반으로 카메라 조정
-                const tickData = this.data.positions[this.currentTick];
-                if (!tickData || !tickData.players || tickData.players.length === 0) {
-                    // 플레이어가 없으면 맵 중심으로
-                    const bounds = this.mapBounds;
-                    const maxDim = Math.max(bounds.width, bounds.depth, bounds.height);
-                    this.cameraDistance = maxDim * 1.5;
-                    this.cameraTarget = null;
-                    this.cameraRotationX = 0.4;
-                    this.cameraRotationY = Math.PI / 4;
-                    if (this.panOffset) {
-                        this.panOffset.x = 0;
-                        this.panOffset.y = 0;
-                        this.panOffset.z = 0;
+                // 실제 플레이어 경로 경계 사용 (전체 맵이 아닌)
+                const bounds = this.mapBounds;
+                if (bounds.pathWidth && bounds.pathDepth && bounds.pathHeight) {
+                    // 실제 경로 경계가 있으면 그것을 사용
+                    const pathCenterX = bounds.pathCenterX;
+                    const pathCenterY = bounds.pathCenterY;
+                    const pathCenterZ = bounds.pathCenterZ;
+                    const pathWidth = bounds.pathWidth;
+                    const pathHeight = bounds.pathHeight;
+                    const pathDepth = bounds.pathDepth;
+                    const maxDim = Math.max(pathWidth, pathHeight, pathDepth);
+                    
+                    // 카메라를 경로 중심으로 설정
+                    this.cameraTarget = { x: pathCenterX, y: pathCenterZ, z: pathCenterY };
+                    // 경로 영역을 딱 맞게 보이도록 카메라 거리 계산
+                    // Three.js 카메라의 시야각을 고려하여 거리 계산
+                    const fov = this.camera.fov * (Math.PI / 180);
+                    const aspect = this.camera.aspect;
+                    const container = document.getElementById('canvas-container');
+                    const viewHeight = container ? container.clientHeight : 600;
+                    const viewWidth = container ? container.clientWidth : 800;
+                    
+                    // 경로 영역이 화면에 딱 맞도록 거리 계산
+                    const distanceX = (pathWidth / 2) / Math.tan(fov / 2) / aspect;
+                    const distanceZ = (pathDepth / 2) / Math.tan(fov / 2);
+                    const distanceY = (pathHeight / 2) / Math.tan(fov / 2);
+                    this.cameraDistance = Math.max(distanceX, distanceZ, distanceY) * 1.1; // 10% 여유 공간
+                } else {
+                    // 경로 경계가 없으면 현재 틱의 플레이어 위치 사용
+                    const tickData = this.data.positions[this.currentTick];
+                    if (!tickData || !tickData.players || tickData.players.length === 0) {
+                        const maxDim = Math.max(bounds.width, bounds.depth, bounds.height);
+                        this.cameraDistance = maxDim * 1.5;
+                        this.cameraTarget = null;
+                    } else {
+                        let minX = Infinity, maxX = -Infinity;
+                        let minY = Infinity, maxY = -Infinity;
+                        let minZ = Infinity, maxZ = -Infinity;
+                        
+                        tickData.players.forEach(player => {
+                            if (!player.position || !Array.isArray(player.position)) return;
+                            const x = player.position[0];
+                            const y = player.position[1];
+                            const z = player.position[2];
+                            if (!Number.isNaN(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+                            if (!Number.isNaN(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+                            if (!Number.isNaN(z)) { minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
+                        });
+                        
+                        if (minX !== Infinity) {
+                            const centerX = (minX + maxX) / 2;
+                            const centerY = (minY + maxY) / 2;
+                            const centerZ = (minZ + maxZ) / 2;
+                            const width = maxX - minX;
+                            const height = maxY - minY;
+                            const depth = maxZ - minZ;
+                            const maxDim = Math.max(width, height, depth);
+                            
+                            this.cameraTarget = { x: centerX, y: centerZ, z: centerY };
+                            this.cameraDistance = maxDim * 1.5;
+                        } else {
+                            this.cameraTarget = null;
+                            this.cameraDistance = bounds.width * 1.5;
+                        }
                     }
-                    this.updateCamera();
-                    return;
                 }
-                
-                // 모든 플레이어의 위치 범위 계산
-                let minX = Infinity, maxX = -Infinity;
-                let minY = Infinity, maxY = -Infinity;
-                let minZ = Infinity, maxZ = -Infinity;
-                
-                tickData.players.forEach(player => {
-                    if (!player.position || !Array.isArray(player.position)) return;
-                    const x = player.position[0];
-                    const y = player.position[1];
-                    const z = player.position[2];
-                    if (!Number.isNaN(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
-                    if (!Number.isNaN(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
-                    if (!Number.isNaN(z)) { minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
-                });
-                
-                if (minX === Infinity) {
-                    // 유효한 위치가 없으면 맵 중심으로
-                    const bounds = this.mapBounds;
-                    const maxDim = Math.max(bounds.width, bounds.depth, bounds.height);
-                    this.cameraDistance = maxDim * 1.5;
-                    this.cameraTarget = null;
-                    this.cameraRotationX = 0.4;
-                    this.cameraRotationY = Math.PI / 4;
-                    if (this.panOffset) {
-                        this.panOffset.x = 0;
-                        this.panOffset.y = 0;
-                        this.panOffset.z = 0;
-                    }
-                    this.updateCamera();
-                    return;
-                }
-                
-                // 플레이어들이 있는 영역의 중심과 크기 계산
-                const centerX = (minX + maxX) / 2;
-                const centerY = (minY + maxY) / 2;
-                const centerZ = (minZ + maxZ) / 2;
-                const width = maxX - minX;
-                const height = maxY - minY;
-                const depth = maxZ - minZ;
-                const maxDim = Math.max(width, height, depth);
-                
-                // 정규화된 크기 사용 (더 가까운 거리)
-                const normalizedMaxDim = this.mapBounds?.scaleFactor ? 
-                    maxDim * this.mapBounds.scaleFactor : 
-                    Math.min(maxDim, 2000); // 최대 2000으로 제한
-                
-                // 카메라를 플레이어 영역 중심으로 설정
-                this.cameraTarget = { x: centerX, y: centerZ, z: centerY };
-                this.cameraDistance = normalizedMaxDim * 1.5; // 플레이어 영역을 충분히 포함하도록 (더 가깝게)
                 this.cameraRotationX = 0.4;
                 this.cameraRotationY = Math.PI / 4;
                 

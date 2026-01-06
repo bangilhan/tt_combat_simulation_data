@@ -4269,11 +4269,6 @@ Three.js · PapaParse · Pure JavaScript`
                 line.position.set(bounds.centerX, bounds.centerZ, bounds.centerY);
                 this.scene.add(line);
                 
-                // 2D 맵 이미지 렌더링 (이미지가 로드된 경우)
-                if (this.mapImageTexture) {
-                    this.renderMapImage();
-                }
-                
                 // 맵 지오메트리 렌더링 (감지된 맵이 있으면)
                 if (this.detectedMapName) {
                     this.renderMapGeometry(this.detectedMapName);

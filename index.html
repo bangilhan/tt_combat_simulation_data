@@ -4503,17 +4503,6 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 // 키보드로 세밀한 줌 컨트롤 추가 (+, - 키)
                 document.addEventListener('keydown', (e) => {
-                    // Follow 모드일 때는 키보드 줌 비활성화
-                    if (this.followPlayer && this.selectedPlayer) {
-                        if (e.key === '+' || e.key === '=' || e.key === '-' || 
-                            (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
-                            (e.altKey && (e.key === '+' || e.key === '=' || e.key === '-')) ||
-                            (e.shiftKey && (e.key === '+' || e.key === '=' || e.key === '-'))) {
-                            e.preventDefault();
-                            return;
-                        }
-                    }
-                    
                     // Ctrl + +/- : 매우 세밀한 줌
                     if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
                         this.cameraDistance -= 1;
@@ -4530,6 +4519,14 @@ Three.js · PapaParse · Pure JavaScript`
                         this.cameraDistance += 5;
                         e.preventDefault();
                     }
+                    // Shift + +/- : 빠른 줌
+                    else if (e.shiftKey && (e.key === '+' || e.key === '=')) {
+                        this.cameraDistance -= 50;
+                        e.preventDefault();
+                    } else if (e.shiftKey && e.key === '-') {
+                        this.cameraDistance += 50;
+                        e.preventDefault();
+                    }
                     // +/- : 일반 줌
                     else if (e.key === '+' || e.key === '=') {
                         this.cameraDistance -= 10;
@@ -4543,6 +4540,11 @@ Three.js · PapaParse · Pure JavaScript`
                     const minDist = Math.max(10, this.baseCameraDistance * 0.01);
                     const maxDist = Math.max(minDist + 500, this.baseCameraDistance * 25.0);
                     this.cameraDistance = Math.max(minDist, Math.min(maxDist, this.cameraDistance));
+                    
+                    // 카메라 즉시 업데이트
+                    if (this.updateCamera) {
+                        this.updateCamera();
+                    }
                 });
 
                 this.updateCamera = () => {

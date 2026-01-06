@@ -5207,11 +5207,15 @@ Three.js · PapaParse · Pure JavaScript`
                     const color = isCT ? 0x5b9bd5 : 0xff6b6b;
                     
                     // CT는 원형, T는 삼각형
+                    // 맵 크기에 비례하여 플레이어 크기 조정
+                    const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth, this.mapBounds.height) : 1000;
+                    const playerScale = Math.max(1.0, Math.min(3.0, mapSize / 20000)); // 맵이 클수록 플레이어도 크게
+                    const baseSize = 50 * playerScale;
                     let geometry;
                     if (isCT) {
-                        geometry = new THREE.SphereGeometry(50, 16, 16); // 크기 증가: 12 -> 50
+                        geometry = new THREE.SphereGeometry(baseSize, 16, 16);
                     } else {
-                        geometry = new THREE.ConeGeometry(50, 100, 3); // 크기 증가: 12, 24 -> 50, 100
+                        geometry = new THREE.ConeGeometry(baseSize, baseSize * 2, 3);
                         geometry.rotateX(-Math.PI / 2);
                     }
                     

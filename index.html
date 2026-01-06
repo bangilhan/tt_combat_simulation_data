@@ -1039,46 +1039,8 @@
                 }
                 
                 // GitHub Token 관리
-                this.setupGitHubToken();
             }
             
-            setupGitHubToken() {
-                const tokenInput = document.getElementById('github-token-input');
-                const saveBtn = document.getElementById('github-token-save');
-                const clearBtn = document.getElementById('github-token-clear');
-                
-                // 저장된 Token 불러오기
-                const savedToken = localStorage.getItem('github_pat_token');
-                if (savedToken && tokenInput) {
-                    tokenInput.value = savedToken;
-                }
-                
-                // 저장 버튼
-                if (saveBtn) {
-                    saveBtn.addEventListener('click', () => {
-                        const token = tokenInput ? tokenInput.value.trim() : '';
-                        if (token) {
-                            localStorage.setItem('github_pat_token', token);
-                            alert('Token이 저장되었습니다.');
-                        } else {
-                            alert('Token을 입력해주세요.');
-                        }
-                    });
-                }
-                
-                // 삭제 버튼
-                if (clearBtn) {
-                    clearBtn.addEventListener('click', () => {
-                        if (tokenInput) tokenInput.value = '';
-                        localStorage.removeItem('github_pat_token');
-                        alert('Token이 삭제되었습니다.');
-                    });
-                }
-            }
-            
-            getGitHubToken() {
-                return localStorage.getItem('github_pat_token') || null;
-            }
 
             setupNavigation() {
                 const navItems = document.querySelectorAll('.nav-item');

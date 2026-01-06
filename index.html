@@ -4296,19 +4296,27 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 // 카메라 위치 조정 및 기본 거리 설정
                 const maxDim = Math.max(width, height, depth);
-                this.baseCameraDistance = maxDim * 1.2;
+                // 맵이 클 경우 카메라 거리를 더 멀리 설정
+                if (maxDim > 10000) {
+                    this.baseCameraDistance = maxDim * 2.0; // 매우 큰 맵의 경우 더 멀리
+                } else {
+                    this.baseCameraDistance = maxDim * 1.5; // 일반 맵
+                }
                 this.cameraDistance = this.baseCameraDistance;
                 // 카메라를 맵 중심 위에서 내려다보는 각도로 설정
                 this.camera.position.set(
                     bounds.centerX,
-                    bounds.centerZ + maxDim * 0.8,
-                    bounds.centerY + maxDim * 1.2
+                    bounds.centerZ + maxDim * 1.0,
+                    bounds.centerY + maxDim * 1.5
                 );
                 this.camera.lookAt(bounds.centerX, bounds.centerZ, bounds.centerY);
                 
                 // 카메라 회전 초기화
                 this.cameraRotationX = 0.4; // 약 23도 아래로
                 this.cameraRotationY = Math.PI / 4; // 45도
+                
+                // 미니맵 초기화
+                this.initMinimap();
                 
                 // 그리드 조정 (더 명확하게)
                 const gridSize = Math.max(width, height) * 1.2;
@@ -4489,9 +4497,10 @@ Three.js · PapaParse · Pure JavaScript`
                             this.panOffset.y += up.y * deltaY * panSpeed;
                             this.panOffset.z += up.z * deltaY * panSpeed;
                         } else {
-                            // 일반 모드: 카메라 회전
-                        this.cameraRotationY += deltaX * 0.01;
-                        this.cameraRotationX += deltaY * 0.01;
+                            // 일반 모드: 카메라 회전 (속도 조정)
+                            const rotationSpeed = 0.005; // 0.01 -> 0.005로 감소하여 더 부드럽게
+                            this.cameraRotationY += deltaX * rotationSpeed;
+                            this.cameraRotationX += deltaY * rotationSpeed;
                         this.cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.cameraRotationX));
                         }
                         mouseX = e.clientX;

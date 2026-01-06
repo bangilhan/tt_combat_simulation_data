@@ -4679,6 +4679,14 @@ Three.js · PapaParse · Pure JavaScript`
                     }
                     this.updateCamera();
                 });
+                
+                // Fit to View
+                const fitToViewBtn = document.getElementById('fit-to-view');
+                if (fitToViewBtn) {
+                    fitToViewBtn.addEventListener('click', () => {
+                        this.fitToView();
+                    });
+                }
             }
 
             setupResizableBottom() {
@@ -5271,6 +5279,161 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 // 미니맵 업데이트
                 this.updateMinimap();
+            }
+            
+            initMinimap() {
+                const minimap = document.getElementById('minimap');
+                const minimapCanvas = document.getElementById('minimap-canvas');
+                if (!minimap || !minimapCanvas || !this.mapBounds) return;
+                
+                minimap.style.display = 'block';
+                minimapCanvas.width = 250;
+                minimapCanvas.height = 250;
+                
+                this.updateMinimap();
+            }
+            
+            updateMinimap() {
+                const minimapCanvas = document.getElementById('minimap-canvas');
+                if (!minimapCanvas || !this.mapBounds || !this.data) return;
+                
+                const ctx = minimapCanvas.getContext('2d');
+                const bounds = this.mapBounds;
+                const scaleX = minimapCanvas.width / bounds.width;
+                const scaleY = minimapCanvas.height / bounds.depth;
+                const scale = Math.min(scaleX, scaleY);
+                
+                // 배경
+                ctx.fillStyle = '#1a1f2e';
+                ctx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+                
+                // 맵 경계
+                ctx.strokeStyle = '#4a90e2';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(
+                    (minimapCanvas.width - bounds.width * scale) / 2,
+                    (minimapCanvas.height - bounds.depth * scale) / 2,
+                    bounds.width * scale,
+                    bounds.depth * scale
+                );
+                
+                // 현재 틱의 플레이어 표시
+                if (this.data && this.data.positions && this.currentTick < this.data.positions.length) {
+                    const tickData = this.data.positions[this.currentTick];
+                    if (tickData && tickData.players) {
+                        const offsetX = (minimapCanvas.width - bounds.width * scale) / 2;
+                        const offsetY = (minimapCanvas.height - bounds.depth * scale) / 2;
+                        
+                        tickData.players.forEach(player => {
+                            if (!player.position || !Array.isArray(player.position)) return;
+                            
+                            const x = offsetX + (player.position[0] - bounds.minX) * scale;
+                            const y = offsetY + (player.position[2] - bounds.minZ) * scale;
+                            
+                            ctx.fillStyle = player.team === 'CT' ? '#5b9bd5' : '#ff6b6b';
+                            ctx.beginPath();
+                            ctx.arc(x, y, 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+                }
+                
+                // 카메라 시야 표시 (간단한 원)
+                if (this.mapBounds) {
+                    const centerX = (minimapCanvas.width - bounds.width * scale) / 2 + (bounds.centerX - bounds.minX) * scale;
+                    const centerY = (minimapCanvas.height - bounds.depth * scale) / 2 + (bounds.centerZ - bounds.minZ) * scale;
+                    ctx.strokeStyle = '#ffff00';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+            
+            fitToView() {
+                if (!this.data || !this.data.positions || !this.mapBounds) return;
+                
+                // 현재 틱의 모든 플레이어 위치를 기반으로 카메라 조정
+                const tickData = this.data.positions[this.currentTick];
+                if (!tickData || !tickData.players || tickData.players.length === 0) {
+                    // 플레이어가 없으면 맵 중심으로
+                    const bounds = this.mapBounds;
+                    const maxDim = Math.max(bounds.width, bounds.depth, bounds.height);
+                    this.cameraDistance = maxDim * 1.5;
+                    this.cameraTarget = null;
+                    this.cameraRotationX = 0.4;
+                    this.cameraRotationY = Math.PI / 4;
+                    if (this.panOffset) {
+                        this.panOffset.x = 0;
+                        this.panOffset.y = 0;
+                        this.panOffset.z = 0;
+                    }
+                    this.updateCamera();
+                    return;
+                }
+                
+                // 모든 플레이어의 위치 범위 계산
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                let minZ = Infinity, maxZ = -Infinity;
+                
+                tickData.players.forEach(player => {
+                    if (!player.position || !Array.isArray(player.position)) return;
+                    const x = player.position[0];
+                    const y = player.position[1];
+                    const z = player.position[2];
+                    if (!Number.isNaN(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+                    if (!Number.isNaN(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+                    if (!Number.isNaN(z)) { minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
+                });
+                
+                if (minX === Infinity) {
+                    // 유효한 위치가 없으면 맵 중심으로
+                    const bounds = this.mapBounds;
+                    const maxDim = Math.max(bounds.width, bounds.depth, bounds.height);
+                    this.cameraDistance = maxDim * 1.5;
+                    this.cameraTarget = null;
+                    this.cameraRotationX = 0.4;
+                    this.cameraRotationY = Math.PI / 4;
+                    if (this.panOffset) {
+                        this.panOffset.x = 0;
+                        this.panOffset.y = 0;
+                        this.panOffset.z = 0;
+                    }
+                    this.updateCamera();
+                    return;
+                }
+                
+                // 플레이어들이 있는 영역의 중심과 크기 계산
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+                const centerZ = (minZ + maxZ) / 2;
+                const width = maxX - minX;
+                const height = maxY - minY;
+                const depth = maxZ - minZ;
+                const maxDim = Math.max(width, height, depth);
+                
+                // 카메라를 플레이어 영역 중심으로 설정
+                this.cameraTarget = { x: centerX, y: centerZ, z: centerY };
+                this.cameraDistance = maxDim * 2.0; // 플레이어 영역을 충분히 포함하도록
+                this.cameraRotationX = 0.4;
+                this.cameraRotationY = Math.PI / 4;
+                
+                // 패닝 오프셋 초기화
+                if (this.panOffset) {
+                    this.panOffset.x = 0;
+                    this.panOffset.y = 0;
+                    this.panOffset.z = 0;
+                }
+                
+                this.updateCamera();
+                console.log('Fit to View 완료:', {
+                    center: { x: centerX, y: centerZ, z: centerY },
+                    size: { width, height, depth },
+                    cameraDistance: this.cameraDistance
+                });
             }
 
             renderAllPlayerPaths() {

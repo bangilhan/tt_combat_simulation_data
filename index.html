@@ -5591,6 +5591,50 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 console.log('경로 수집 완료:', playerPaths.size, '명의 플레이어');
                 
+                // 실제 플레이어 경로의 경계 계산 (모든 경로 포인트를 기반으로)
+                let pathMinX = Infinity, pathMaxX = -Infinity;
+                let pathMinY = Infinity, pathMaxY = -Infinity;
+                let pathMinZ = Infinity, pathMaxZ = -Infinity;
+                
+                playerPaths.forEach((points, playerName) => {
+                    points.forEach(point => {
+                        if (!Number.isNaN(point.x)) {
+                            pathMinX = Math.min(pathMinX, point.x);
+                            pathMaxX = Math.max(pathMaxX, point.x);
+                        }
+                        if (!Number.isNaN(point.y)) {
+                            pathMinY = Math.min(pathMinY, point.y);
+                            pathMaxY = Math.max(pathMaxY, point.y);
+                        }
+                        if (!Number.isNaN(point.z)) {
+                            pathMinZ = Math.min(pathMinZ, point.z);
+                            pathMaxZ = Math.max(pathMaxZ, point.z);
+                        }
+                    });
+                });
+                
+                // 경로 경계를 mapBounds에 업데이트 (실제 이동 영역)
+                if (pathMinX !== Infinity && this.mapBounds) {
+                    this.mapBounds.pathMinX = pathMinX;
+                    this.mapBounds.pathMaxX = pathMaxX;
+                    this.mapBounds.pathMinY = pathMinY;
+                    this.mapBounds.pathMaxY = pathMaxY;
+                    this.mapBounds.pathMinZ = pathMinZ;
+                    this.mapBounds.pathMaxZ = pathMaxZ;
+                    this.mapBounds.pathCenterX = (pathMinX + pathMaxX) / 2;
+                    this.mapBounds.pathCenterY = (pathMinY + pathMaxY) / 2;
+                    this.mapBounds.pathCenterZ = (pathMinZ + pathMaxZ) / 2;
+                    this.mapBounds.pathWidth = pathMaxX - pathMinX;
+                    this.mapBounds.pathHeight = pathMaxY - pathMinY;
+                    this.mapBounds.pathDepth = pathMaxZ - pathMinZ;
+                    
+                    console.log('실제 플레이어 경로 경계:', {
+                        X: [pathMinX.toFixed(1), pathMaxX.toFixed(1), (pathMaxX - pathMinX).toFixed(1)],
+                        Y: [pathMinY.toFixed(1), pathMaxY.toFixed(1), (pathMaxY - pathMinY).toFixed(1)],
+                        Z: [pathMinZ.toFixed(1), pathMaxZ.toFixed(1), (pathMaxZ - pathMinZ).toFixed(1)]
+                    });
+                }
+                
                 // 각 플레이어의 경로를 라인으로 렌더링
                 let pathCount = 0;
                 playerPaths.forEach((points, playerName) => {

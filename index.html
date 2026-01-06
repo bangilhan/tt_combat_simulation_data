@@ -2654,8 +2654,15 @@ Three.js · PapaParse · Pure JavaScript`
                     this.showInvestigate();
                     
                     // 시뮬레이션 렌더링 초기화
+                    this.currentTick = 0; // 초기 틱 설정
                     setTimeout(() => {
-                        this.renderTick(0);
+                        console.log('초기 렌더링 시작:', { 
+                            positionsLength: this.data.positions.length, 
+                            currentTick: this.currentTick,
+                            firstTickData: this.data.positions[0]
+                        });
+                        this.renderTick(this.currentTick);
+                        this.updateTimeDisplay();
                         // renderer 크기 재조정 (container가 숨겨져 있을 수 있음)
                         const container = document.getElementById('canvas-container');
                         if (container && this.renderer) {
@@ -4989,19 +4996,46 @@ Three.js · PapaParse · Pure JavaScript`
             }
 
             renderTick(tickIndex) {
-                if (!this.data || !this.data.positions) return;
+                if (!this.data || !this.data.positions) {
+                    console.warn('renderTick: data 또는 positions가 없습니다', { hasData: !!this.data, hasPositions: !!(this.data && this.data.positions) });
+                    return;
+                }
 
                 const tickData = this.data.positions[tickIndex];
-                if (!tickData) return;
+                if (!tickData) {
+                    console.warn('renderTick: tickData가 없습니다', { tickIndex, totalPositions: this.data.positions.length });
+                    return;
+                }
+
+                if (!tickData.players || tickData.players.length === 0) {
+                    console.warn('renderTick: players가 비어있습니다', { tickIndex, tick: tickData.tick, game_time: tickData.game_time });
+                    // 플레이어가 없어도 기존 오브젝트는 제거
+                    if (this.playerObjects) {
+                        this.playerObjects.forEach(obj => this.scene.remove(obj));
+                        this.playerObjects.clear();
+                    }
+                    if (this.playerLabels) {
+                        this.playerLabels.forEach(obj => this.scene.remove(obj));
+                        this.playerLabels.clear();
+                    }
+                    return;
+                }
+
+                console.log('renderTick:', { tickIndex, players: tickData.players.length, tick: tickData.tick });
 
                 // 기존 오브젝트 제거
-                this.playerObjects.forEach(obj => this.scene.remove(obj));
-                this.playerLabels.forEach(obj => this.scene.remove(obj));
-                this.playerObjects.clear();
-                this.playerLabels.clear();
+                if (this.playerObjects) {
+                    this.playerObjects.forEach(obj => this.scene.remove(obj));
+                    this.playerObjects.clear();
+                }
+                if (this.playerLabels) {
+                    this.playerLabels.forEach(obj => this.scene.remove(obj));
+                    this.playerLabels.clear();
+                }
 
                 // 플레이어 렌더링
-                tickData.players.forEach(player => {
+                for (let i = 0; i < tickData.players.length; i++) {
+                    const player = tickData.players[i];
                     // 새 데이터에는 team 정보가 없으므로 player_id를 기반으로 색상 구분
                     // player_id가 음수면 한 팀, 양수면 다른 팀으로 가정
                     const playerIdNum = parseInt(player.name) || 0;
@@ -5102,7 +5136,7 @@ Three.js · PapaParse · Pure JavaScript`
                     
                     // 트레일 업데이트
                     this.updateTrail(player.name, player.position, color);
-                });
+                }
 
                 this.renderEvents(tickData.game_time);
                 this.updateEventLog();

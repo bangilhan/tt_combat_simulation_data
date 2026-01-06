@@ -2740,6 +2740,11 @@ Three.js · PapaParse · Pure JavaScript`
                         // 먼저 모든 플레이어의 경로를 라인으로 그려서 시각화
                         this.renderAllPlayerPaths();
                         
+                        // 경로 렌더링 후 실제 경로 경계에 맞게 자동으로 Fit to View
+                        setTimeout(() => {
+                            this.fitToView();
+                        }, 200);
+                        
                         // 그 다음 캐릭터 렌더링
                         this.renderTick(0);
                         

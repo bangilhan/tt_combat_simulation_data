@@ -5222,6 +5222,80 @@ Three.js · PapaParse · Pure JavaScript`
                 this.updateEventLog();
             }
 
+            renderAllPlayerPaths() {
+                // 기존 경로 라인 제거
+                if (this.playerPathLines) {
+                    this.playerPathLines.forEach(line => this.scene.remove(line));
+                    this.playerPathLines.clear();
+                } else {
+                    this.playerPathLines = new Map();
+                }
+                
+                if (!this.data || !this.data.positions) {
+                    console.warn('renderAllPlayerPaths: 데이터가 없습니다');
+                    return;
+                }
+                
+                console.log('=== 모든 플레이어 경로 렌더링 시작 ===');
+                
+                // 각 플레이어별로 경로 수집
+                const playerPaths = new Map();
+                
+                for (let i = 0; i < this.data.positions.length; i++) {
+                    const tickData = this.data.positions[i];
+                    if (!tickData || !tickData.players) continue;
+                    
+                    for (let j = 0; j < tickData.players.length; j++) {
+                        const player = tickData.players[j];
+                        if (!player.position || !Array.isArray(player.position) || player.position.length < 3) continue;
+                        
+                        if (!playerPaths.has(player.name)) {
+                            playerPaths.set(player.name, []);
+                        }
+                        
+                        const posX = player.position[0];
+                        const posY = player.position[1];
+                        const posZ = player.position[2];
+                        
+                        if (!Number.isNaN(posX) && !Number.isNaN(posY) && !Number.isNaN(posZ)) {
+                            // Three.js 좌표계: [X, Z, Y]
+                            playerPaths.get(player.name).push(new THREE.Vector3(posX, posZ, posY));
+                        }
+                    }
+                }
+                
+                console.log('경로 수집 완료:', playerPaths.size, '명의 플레이어');
+                
+                // 각 플레이어의 경로를 라인으로 렌더링
+                let pathCount = 0;
+                playerPaths.forEach((points, playerName) => {
+                    if (points.length < 2) return;
+                    
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: 0x00ff00, // 초록색으로 경로 표시
+                        opacity: 0.6,
+                        transparent: true,
+                        linewidth: 2
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    this.scene.add(line);
+                    this.playerPathLines.set(playerName, line);
+                    pathCount++;
+                    
+                    // 첫 번째 플레이어의 경로 정보 출력
+                    if (pathCount === 1) {
+                        console.log(`첫 번째 플레이어 (${playerName}) 경로:`, {
+                            points_count: points.length,
+                            first_point: { x: points[0].x, y: points[0].y, z: points[0].z },
+                            last_point: { x: points[points.length - 1].x, y: points[points.length - 1].y, z: points[points.length - 1].z }
+                        });
+                    }
+                });
+                
+                console.log('경로 렌더링 완료:', pathCount, '개 경로');
+            }
+
             updateTrail(playerName, position, color) {
                 if (!this.playerTrails.has(playerName)) {
                     const trailGeometry = new THREE.BufferGeometry();

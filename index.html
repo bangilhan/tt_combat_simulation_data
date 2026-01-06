@@ -4315,8 +4315,17 @@ Three.js · PapaParse · Pure JavaScript`
                 this.cameraRotationX = 0.4; // 약 23도 아래로
                 this.cameraRotationY = Math.PI / 4; // 45도
                 
-                // 미니맵 초기화
-                this.initMinimap();
+                // 미니맵 초기화 (함수가 정의되어 있는지 확인)
+                if (typeof this.initMinimap === 'function') {
+                    this.initMinimap();
+                } else {
+                    // 함수가 아직 정의되지 않았으면 나중에 초기화
+                    setTimeout(() => {
+                        if (typeof this.initMinimap === 'function') {
+                            this.initMinimap();
+                        }
+                    }, 100);
+                }
                 
                 // 그리드 조정 (더 명확하게)
                 const gridSize = Math.max(width, height) * 1.2;

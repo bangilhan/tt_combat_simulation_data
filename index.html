@@ -1154,6 +1154,31 @@
                         canvasContainer.style.visibility = 'visible';
                     }
                     
+                    // 데이터가 없을 때 안내 메시지 표시
+                    if (!this.data || !this.data.positions || this.data.positions.length === 0) {
+                        // 안내 메시지를 위한 오버레이 추가
+                        let messageOverlay = document.getElementById('no-data-message');
+                        if (!messageOverlay) {
+                            messageOverlay = document.createElement('div');
+                            messageOverlay.id = 'no-data-message';
+                            messageOverlay.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #8a8fa5; z-index: 1000; pointer-events: none;';
+                            if (canvasContainer) {
+                                canvasContainer.appendChild(messageOverlay);
+                            }
+                        }
+                        messageOverlay.innerHTML = `
+                            <div style="font-size: 24px; margin-bottom: 10px;">CSV 파일을 먼저 로드해주세요</div>
+                            <div style="font-size: 16px;">좌측 사이드바의 "파일 선택" 버튼을 클릭하세요</div>
+                        `;
+                        messageOverlay.style.display = 'block';
+                    } else {
+                        // 데이터가 있으면 메시지 숨김
+                        const messageOverlay = document.getElementById('no-data-message');
+                        if (messageOverlay) {
+                            messageOverlay.style.display = 'none';
+                        }
+                    }
+                    
                     // Renderer 크기 재조정
                     if (this.renderer) {
                         setTimeout(() => {
@@ -1164,6 +1189,11 @@
                                 this.camera.updateProjectionMatrix();
                                 this.renderer.setSize(width, height);
                             }
+                        }, 100);
+                    } else if (this.scene) {
+                        // Renderer가 없으면 씬 재초기화
+                        setTimeout(() => {
+                            this.setupScene();
                         }, 100);
                     }
                 }
@@ -4257,8 +4287,13 @@ Three.js · PapaParse · Pure JavaScript`
 
             setupScene() {
                 const container = document.getElementById('canvas-container');
-                const width = container.clientWidth;
-                const height = container.clientHeight;
+                // container가 숨겨져 있을 수 있으므로 기본값 사용
+                let width = container ? container.clientWidth : 800;
+                let height = container ? container.clientHeight : 600;
+                
+                // 크기가 0이면 기본값 사용
+                if (width === 0) width = 800;
+                if (height === 0) height = 600;
 
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x0a0e15);

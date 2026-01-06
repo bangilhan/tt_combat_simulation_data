@@ -911,9 +911,9 @@
             
             <div id="csv-loading" style="color: #8a8fa5;">파일 목록 로딩 중...</div>
             <ul id="csv-file-list"></ul>
-            <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <button id="csv-load-selected" style="flex: 1; padding: 10px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 40px; box-sizing: border-box;">선택한 파일 로드</button>
-                <button id="csv-popup-close" style="flex: 1; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; height: 40px; box-sizing: border-box;">닫기</button>
+            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: stretch;">
+                <button id="csv-load-selected" style="flex: 1; padding: 10px 20px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 40px; line-height: 1.2; box-sizing: border-box;">선택한 파일 로드</button>
+                <button id="csv-popup-close" style="flex: 1; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 40px; line-height: 1.2; box-sizing: border-box;">닫기</button>
             </div>
         </div>
     </div>
@@ -1556,6 +1556,44 @@ Three.js · PapaParse · Pure JavaScript`
                             </small>
                         </li>
                     `;
+                }
+            }
+            
+            async loadSingleCSVFile(fileUrl) {
+                const loading = document.getElementById('loading');
+                const selectedFile = document.getElementById('selected-file');
+                
+                if (!fileUrl) {
+                    alert('파일을 선택해주세요.');
+                    return;
+                }
+                
+                if (loading) {
+                    loading.style.display = 'block';
+                    loading.innerHTML = 'GitHub에서 CSV 파일 다운로드 중...';
+                }
+                
+                try {
+                    const response = await fetch(fileUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const text = await response.text();
+                    const filename = fileUrl.split('/').pop() || 'unknown.csv';
+                    const blob = new Blob([text], { type: 'text/csv' });
+                    const file = new File([blob], filename, { type: 'text/csv' });
+                    
+                    if (selectedFile) {
+                        selectedFile.textContent = filename;
+                    }
+                    
+                    await this.loadCSV(file);
+                } catch (error) {
+                    console.error('CSV 파일 다운로드 실패:', error);
+                    if (loading) {
+                        loading.innerHTML = '오류: ' + error.message;
+                    }
+                    alert('CSV 파일을 다운로드하는 중 오류가 발생했습니다: ' + error.message);
                 }
             }
             

@@ -240,7 +240,7 @@ class CombatSimulation {
             );
             this.scene.add(sprite);
 
-            // 트레일 추가
+            // 트레일 추가 (흰색 점선으로 통일)
             this.updateTrail(player.name, player.position);
         });
 
@@ -273,9 +273,10 @@ class CombatSimulation {
         if (!this.playerTrails.has(playerName)) {
             const trailGeometry = new THREE.BufferGeometry();
             const trailMaterial = new THREE.LineBasicMaterial({ 
-                color: 0x4a90e2,
-                opacity: 0.5,
-                transparent: true
+                color: 0xffffff,      // 흰색
+                opacity: 0.8,
+                transparent: true,
+                linewidth: 1.5
             });
             const trail = new THREE.Line(trailGeometry, trailMaterial);
             this.scene.add(trail);

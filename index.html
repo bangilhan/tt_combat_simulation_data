@@ -698,7 +698,6 @@
                 <div id="file-input">
                     <button id="select-csv-btn" style="width: 100%; padding: 10px; background: #4a90e2; color: #fff; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">파일 선택</button>
                     <div id="selected-file" style="font-size: 12px; color: #8a8fa5; margin-bottom: 10px;">선택된 파일 없음</div>
-                    <input type="file" id="csv-file" accept=".csv" style="display: none;" />
                     <div id="loading" style="display: none;">CSV 파일 처리 중...</div>
                 </div>
             </div>
@@ -1030,41 +1029,12 @@
 
             setupFileInput() {
                 const selectBtn = document.getElementById('select-csv-btn');
-                const inputEl = document.getElementById('csv-file');
                 
                 if (selectBtn) {
                     selectBtn.addEventListener('click', () => {
                         this.showCSVPopup();
                     });
                 }
-                
-                if (!inputEl) {
-                    console.error('파일 입력 요소(#csv-file)를 찾을 수 없습니다.');
-                    return;
-                }
-                // 같은 파일을 연속 선택할 때 change 이벤트가 안 뜨는 문제 방지
-                inputEl.addEventListener('click', () => {
-                    inputEl.value = '';
-                });
-                inputEl.addEventListener('change', (e) => {
-                    const file = e.target.files && e.target.files[0];
-                    const loading = document.getElementById('loading');
-                    if (loading) {
-                        loading.style.display = 'block';
-                        loading.innerHTML = 'Parsing CSV file...';
-                    }
-                    if (file) {
-                        console.log('CSV 파일 선택됨:', file.name, file.size, 'bytes');
-                        document.getElementById('selected-file').textContent = file.name;
-                        this.loadCSV(file);
-                    } else {
-                        console.warn('선택된 파일이 없습니다.');
-                        if (loading) loading.style.display = 'none';
-                    }
-                });
-
-                // 맵 이미지 자동 로드 (POC: anubis 프로맵)
-                // setupMapImageInput은 제거됨 (POC에서는 자동 로드)
 
                 // 팝업 닫기 버튼
                 const closeBtn = document.getElementById('csv-popup-close');

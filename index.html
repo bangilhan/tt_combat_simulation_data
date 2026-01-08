@@ -645,6 +645,57 @@
             margin-bottom: 10px;
         }
 
+        /* Camera/Zoom Info Panel (top-right) */
+        #camera-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 31, 46, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #8a8fa5;
+            font-family: 'Courier New', monospace;
+            z-index: 50;
+            min-width: 200px;
+            border: 1px solid rgba(74, 143, 226, 0.3);
+            cursor: move;
+            user-select: none;
+        }
+        
+        #camera-info.dragging {
+            opacity: 0.8;
+            border-color: rgba(74, 143, 226, 0.8);
+        }
+
+        #camera-info-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(74, 143, 226, 0.3);
+            padding-bottom: 4px;
+        }
+
+        #camera-info-content {
+            line-height: 1.6;
+        }
+
+        #camera-info-content .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        #camera-info-content .info-label {
+            color: #8a8fa5;
+        }
+
+        #camera-info-content .info-value {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
         /* Kill event picker (top-left of canvas) */
         #event-picker {
             position: absolute;
@@ -787,6 +838,36 @@
         </div>
 
         <div id="canvas-container">
+                    <!-- Camera/Zoom Info Panel -->
+                    <div id="camera-info">
+                        <div id="camera-info-title">Camera Info</div>
+                        <div id="camera-info-content">
+                            <div class="info-row">
+                                <span class="info-label">Distance:</span>
+                                <span class="info-value" id="camera-distance">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Zoom:</span>
+                                <span class="info-value" id="camera-zoom">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Target:</span>
+                                <span class="info-value" id="camera-target">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Position:</span>
+                                <span class="info-value" id="camera-position">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Rotation:</span>
+                                <span class="info-value" id="camera-rotation">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Follow Mode:</span>
+                                <span class="info-value" id="camera-follow">-</span>
+                            </div>
+                        </div>
+                    </div>
             <canvas id="canvas"></canvas>
             <!-- 미니맵 제거 (메인 뷰가 2D이므로 불필요) -->
             <!-- <div id="minimap" style="display: none;">
@@ -1014,6 +1095,8 @@
                 this.setupTabs();
                 this.setupResizableBottom();
                 this.setupNavigation();
+                // 카메라 인포 패널 드래그 기능 설정
+                this.setupCameraInfoDrag();
                 // 초기 로드 시 Dashboard 표시
                 this.showDashboard();
                 
@@ -4515,11 +4598,9 @@ Three.js · PapaParse · Pure JavaScript`
                         // Shift 키 상태를 실시간으로 확인 (mousemove 중에도 변경 가능)
                         const shouldPan = e.shiftKey;
                         
-                        // Follow 모드에서도 Shift 키를 누르면 패닝 허용
-                        if (this.followPlayer && this.selectedPlayer && !shouldPan) {
-                            // Follow 모드이고 Shift가 안 눌려있으면 드래그 비활성화
-                            return;
-                        }
+                        // Follow 모드에서도 마우스 드래그로 카메라 회전/이동 허용
+                        // Shift 키를 누르면 패닝, 아니면 회전
+                        // Follow 모드에서도 시점 이동은 가능하도록 함 (드래그 비활성화 제거)
                         
                         // 3D 뷰: Shift 키를 누르면 패닝, 아니면 회전
                         if (shouldPan) {
@@ -4559,19 +4640,19 @@ Three.js · PapaParse · Pure JavaScript`
                                 }
                             }
                             
-                            // 카메라 타겟 이동 (완전히 수평 이동만 - 카메라 회전 고려 안 함)
-                            // 월드 좌표계에서 직접 X, Z만 이동
-                            let newTargetX = this.cameraTarget.x - smoothedDeltaX * scaledPanSpeed * 0.5;
-                            let newTargetY = this.cameraTarget.y; // Y축은 변경하지 않음
-                            let newTargetZ = this.cameraTarget.z - smoothedDeltaY * scaledPanSpeed * 0.5;
+                            // 카메라 타겟 이동 (3차원에서 위/아래로만 이동)
+                            // deltaX는 무시하고 deltaY만 사용하여 Y축(높이)으로만 이동
+                            let newTargetX = this.cameraTarget.x; // X축은 변경하지 않음
+                            let newTargetY = this.cameraTarget.y - smoothedDeltaY * scaledPanSpeed * 0.5; // Y축(높이)만 변경
+                            let newTargetZ = this.cameraTarget.z; // Z축은 변경하지 않음
                             
                             // 패닝 오프셋은 0으로 유지 (카메라 타겟만 이동)
                             let newPanX = 0;
                             let newPanY = 0;
                             let newPanZ = 0;
                             
-                            // 플레이어 경로 범위 내로 제한
-                            if (this.mapBounds && this.mapBounds.pathMinX !== undefined) {
+                            // 플레이어 경로 범위 내로 제한 (Y축만 체크)
+                            if (this.mapBounds && this.mapBounds.pathMinZ !== undefined) {
                                 const bounds = this.mapBounds;
                                 
                                 // 경로 경계 내로 제한 (약간의 여유 공간 포함)
@@ -4580,17 +4661,11 @@ Three.js · PapaParse · Pure JavaScript`
                                     bounds.pathHeight || bounds.height || 0,
                                     bounds.pathDepth || bounds.depth || 0
                                 ) * 0.1;
-                                const minX = bounds.pathMinX - margin;
-                                const maxX = bounds.pathMaxX + margin;
                                 const minY = bounds.pathMinZ - margin;
                                 const maxY = bounds.pathMaxZ + margin;
-                                const minZ = bounds.pathMinY - margin;
-                                const maxZ = bounds.pathMaxY + margin;
                                 
-                                // 타겟이 경계를 벗어나면 제한
-                                newTargetX = Math.max(minX, Math.min(maxX, newTargetX));
+                                // Y축(높이)만 경계 체크
                                 newTargetY = Math.max(minY, Math.min(maxY, newTargetY));
-                                newTargetZ = Math.max(minZ, Math.min(maxZ, newTargetZ));
                             }
                             
                             // 카메라 타겟 업데이트
@@ -4780,7 +4855,48 @@ Three.js · PapaParse · Pure JavaScript`
                         target.y + (this.panOffset ? this.panOffset.y : 0),
                         target.z + (this.panOffset ? this.panOffset.z : 0)
                     );
+                    
+                    // 카메라 정보 업데이트
+                    this.updateCameraInfo();
                 };
+                
+                // 카메라 정보 표시 업데이트
+                this.updateCameraInfo = () => {
+                    const distanceEl = document.getElementById('camera-distance');
+                    const zoomEl = document.getElementById('camera-zoom');
+                    const targetEl = document.getElementById('camera-target');
+                    const positionEl = document.getElementById('camera-position');
+                    const rotationEl = document.getElementById('camera-rotation');
+                    const followEl = document.getElementById('camera-follow');
+                    
+                    if (distanceEl) {
+                        distanceEl.textContent = this.cameraDistance ? this.cameraDistance.toFixed(1) : '-';
+                    }
+                    
+                    if (zoomEl) {
+                        // 줌 레벨 계산 (거리 기반, 작을수록 줌인)
+                        const baseDistance = 1000;
+                        const zoomLevel = baseDistance / (this.cameraDistance || 1);
+                        zoomEl.textContent = zoomLevel.toFixed(2) + 'x';
+                    }
+                    
+                    if (targetEl && this.cameraTarget) {
+                        targetEl.textContent = `${this.cameraTarget.x.toFixed(1)}, ${this.cameraTarget.y.toFixed(1)}, ${this.cameraTarget.z.toFixed(1)}`;
+                    }
+                    
+                    if (positionEl && this.camera) {
+                        positionEl.textContent = `${this.camera.position.x.toFixed(1)}, ${this.camera.position.y.toFixed(1)}, ${this.camera.position.z.toFixed(1)}`;
+                    }
+                    
+                    if (rotationEl) {
+                        rotationEl.textContent = `X:${(this.cameraRotationX * 180 / Math.PI).toFixed(1)}° Y:${(this.cameraRotationY * 180 / Math.PI).toFixed(1)}°`;
+                    }
+                    
+                    if (followEl) {
+                        followEl.textContent = (this.followPlayer && this.selectedPlayer) ? `Following: ${this.selectedPlayer}` : 'Free';
+                    }
+                };
+                
 
                 document.getElementById('play-btn').addEventListener('click', () => {
                     this.togglePlay();
@@ -5011,12 +5127,14 @@ Three.js · PapaParse · Pure JavaScript`
                     this.followPlayer = !this.followPlayer;
                     document.getElementById('follow-toggle').textContent = this.followPlayer ? 'Following' : 'Follow';
                     if (this.followPlayer) {
-                        // Follow 모드 시작 시 수동 줌 플래그 초기화 (자동 줌 활성화)
-                        this.manualZoomInFollow = false;
+                        // Follow 모드: 자동 줌 끄고 사용자가 거리 조정하도록 설정
+                        this.manualZoomInFollow = true;
                         // Follow 모드 시작 시 즉시 플레이어 위치로 카메라 이동 (스케일 적용)
                         const tickData = this.data.positions[this.currentTick];
                         if (tickData && tickData.players) {
-                            const player = tickData.players.find(p => p.name === this.selectedPlayer);
+                            // 플레이어 이름을 문자열로 정확히 비교 (타입 변환 보장)
+                            const selectedPlayerName = String(this.selectedPlayer);
+                            const player = tickData.players.find(p => String(p.name) === selectedPlayerName);
                             if (player && player.position && Array.isArray(player.position)) {
                                 const scaledX = (player.position[0] - this.coordinateOffset.x) * this.coordinateScale;
                                 const scaledY = (player.position[1] - this.coordinateOffset.y) * this.coordinateScale;
@@ -5027,14 +5145,14 @@ Three.js · PapaParse · Pure JavaScript`
                                     z: scaledY
                                 };
                                 
-                                // 스케일링된 좌표 기준으로 적절한 거리 설정
+                                // 초기 거리는 현재 값을 유지하고, 설정된 값이 없으면 적당한 기본값 사용
+                                if (!Number.isFinite(this.cameraDistance) || this.cameraDistance <= 0) {
                                 const container = document.getElementById('canvas-container');
                                 const screenWidth = container ? container.clientWidth : 800;
                                 const screenHeight = container ? container.clientHeight : 600;
                                 const screenMinDim = Math.min(screenWidth, screenHeight);
-                                
-                                // 스케일링된 좌표에서 적절한 거리 계산 (플레이어가 잘 보이도록)
-                                this.cameraDistance = Math.max(200, screenMinDim * 0.3);
+                                    this.cameraDistance = Math.max(600, screenMinDim * 0.6);
+                                }
                                 
                                 if (this.panOffset) {
                                     this.panOffset.x = 0;
@@ -5072,6 +5190,104 @@ Three.js · PapaParse · Pure JavaScript`
                 document.getElementById('next-player-tick').onclick = () => {
                     this.seekToPlayerTick(1);
                 };
+            }
+            
+            // 카메라 인포 패널 드래그 기능 설정 (populatePlayerPicker 이후에 호출)
+            setupCameraInfoDrag() {
+                const cameraInfo = document.getElementById('camera-info');
+                if (!cameraInfo) return;
+                
+                let isDragging = false;
+                let dragStartX = 0;
+                let dragStartY = 0;
+                let startLeft = 0;
+                let startTop = 0;
+                
+                // 저장된 위치 불러오기
+                const savedPosition = localStorage.getItem('cameraInfoPosition');
+                if (savedPosition) {
+                    try {
+                        const pos = JSON.parse(savedPosition);
+                        cameraInfo.style.top = pos.top + 'px';
+                        cameraInfo.style.right = 'auto';
+                        cameraInfo.style.left = pos.left + 'px';
+                        cameraInfo.style.bottom = 'auto';
+                    } catch (e) {
+                        console.warn('카메라 인포 위치 복원 실패:', e);
+                    }
+                }
+                
+                cameraInfo.addEventListener('mousedown', (e) => {
+                    // 제목 영역이나 빈 공간을 클릭했을 때만 드래그 시작
+                    if (e.target === cameraInfo || e.target.id === 'camera-info-title' || e.target.closest('#camera-info-title')) {
+                        isDragging = true;
+                        cameraInfo.classList.add('dragging');
+                        
+                        const rect = cameraInfo.getBoundingClientRect();
+                        const container = document.getElementById('canvas-container');
+                        const containerRect = container.getBoundingClientRect();
+                        
+                        dragStartX = e.clientX;
+                        dragStartY = e.clientY;
+                        
+                        // 현재 위치 계산 (right/top 기준을 left/top으로 변환)
+                        const currentRight = containerRect.width - (rect.right - containerRect.left);
+                        const currentTop = rect.top - containerRect.top;
+                        
+                        startLeft = containerRect.width - currentRight - rect.width;
+                        startTop = currentTop;
+                        
+                        e.preventDefault();
+                    }
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    
+                    const container = document.getElementById('canvas-container');
+                    const containerRect = container.getBoundingClientRect();
+                    const rect = cameraInfo.getBoundingClientRect();
+                    
+                    const deltaX = e.clientX - dragStartX;
+                    const deltaY = e.clientY - dragStartY;
+                    
+                    let newLeft = startLeft + deltaX;
+                    let newTop = startTop + deltaY;
+                    
+                    // 컨테이너 경계 내로 제한
+                    newLeft = Math.max(0, Math.min(newLeft, containerRect.width - rect.width));
+                    newTop = Math.max(0, Math.min(newTop, containerRect.height - rect.height));
+                    
+                    cameraInfo.style.left = newLeft + 'px';
+                    cameraInfo.style.top = newTop + 'px';
+                    cameraInfo.style.right = 'auto';
+                    cameraInfo.style.bottom = 'auto';
+                    
+                    e.preventDefault();
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        cameraInfo.classList.remove('dragging');
+                        
+                        // 위치 저장
+                        const rect = cameraInfo.getBoundingClientRect();
+                        const container = document.getElementById('canvas-container');
+                        const containerRect = container.getBoundingClientRect();
+                        
+                        const savedPos = {
+                            left: rect.left - containerRect.left,
+                            top: rect.top - containerRect.top
+                        };
+                        
+                        try {
+                            localStorage.setItem('cameraInfoPosition', JSON.stringify(savedPos));
+                        } catch (e) {
+                            console.warn('카메라 인포 위치 저장 실패:', e);
+                        }
+                    }
+                });
             }
 
             seekToPlayerTick(direction) {
@@ -5187,6 +5403,25 @@ Three.js · PapaParse · Pure JavaScript`
                     });
                 }
                 
+                // 디버깅: 이벤트 데이터 검증
+                console.log('=== selectEvent 디버깅 ===');
+                console.log('Event:', {
+                    tick: event.tick,
+                    game_time: event.game_time,
+                    event_type: event.event_type,
+                    attacker: {
+                        name: event.attacker?.name,
+                        position: event.attacker?.position,
+                        team: event.attacker?.team
+                    },
+                    victim: {
+                        name: event.victim?.name,
+                        position: event.victim?.position,
+                        team: event.victim?.team
+                    },
+                    weapon: event.weapon
+                });
+                
                 this.selectedEvent = event;
                 
                 // 포커스 모드 활성화 (이벤트 전후 30틱)
@@ -5202,14 +5437,99 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 // 해당 시간으로 이동
                 const targetTick = this.findTickByTime(event.game_time);
+                console.log('Target tick:', targetTick, 'for game_time:', event.game_time);
                 if (targetTick !== -1) {
                     this.currentTick = targetTick;
-                    this.renderTick(this.currentTick);
-                    this.updateTimeDisplay();
+                    // playheadTime도 kill 이벤트 시간으로 설정 (재생 시 kill 순간이 보이도록)
+                    this.playheadTime = event.game_time;
+                    this.lastFrameTime = Date.now(); // 프레임 타이밍 리셋
+                    
+                    // 해당 틱의 플레이어 데이터 확인
+                    const tickData = this.data.positions[targetTick];
+                    if (tickData) {
+                        console.log('Tick data:', {
+                            tick: tickData.tick,
+                            game_time: tickData.game_time,
+                            players_count: tickData.players?.length || 0,
+                            attacker_in_players: tickData.players?.find(p => p.name === event.attacker?.name) ? 'YES' : 'NO',
+                            victim_in_players: tickData.players?.find(p => p.name === event.victim?.name) ? 'YES' : 'NO'
+                        });
+                        if (event.attacker?.name) {
+                            const attackerInTick = tickData.players?.find(p => p.name === event.attacker.name);
+                            console.log('Attacker in tick:', attackerInTick ? {
+                                name: attackerInTick.name,
+                                position: attackerInTick.position,
+                                health: attackerInTick.health
+                            } : 'NOT FOUND');
+                        }
+                        if (event.victim?.name) {
+                            const victimInTick = tickData.players?.find(p => p.name === event.victim.name);
+                            console.log('Victim in tick:', victimInTick ? {
+                                name: victimInTick.name,
+                                position: victimInTick.position,
+                                health: victimInTick.health
+                            } : 'NOT FOUND');
+                        }
+                    }
+                } else {
+                    console.warn('Target tick not found for game_time:', event.game_time);
+                }
+                
+                // victim의 position이 null이면 해당 틱의 players에서 찾아서 보완
+                if (event.victim && event.victim.name && (!event.victim.position || event.victim.position[0] === null)) {
+                    const tickIndex = this.findTickByTime(event.game_time);
+                    if (tickIndex !== -1) {
+                        const tickData = this.data.positions[tickIndex];
+                        if (tickData && tickData.players) {
+                            const victimInTick = tickData.players.find(p => p.name === event.victim.name);
+                            if (victimInTick && victimInTick.position) {
+                                console.log('selectEvent: Victim position 보완:', {
+                                    victim_name: event.victim.name,
+                                    original_position: event.victim.position,
+                                    found_position: victimInTick.position
+                                });
+                                event.victim.position = victimInTick.position;
+                                if (!event.victim.team && victimInTick.team) {
+                                    event.victim.team = victimInTick.team;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // attacker의 position이 null이면 해당 틱의 players에서 찾아서 보완
+                if (event.attacker && event.attacker.name && (!event.attacker.position || event.attacker.position[0] === null)) {
+                    const tickIndex = this.findTickByTime(event.game_time);
+                    if (tickIndex !== -1) {
+                        const tickData = this.data.positions[tickIndex];
+                        if (tickData && tickData.players) {
+                            const attackerInTick = tickData.players.find(p => p.name === event.attacker.name);
+                            if (attackerInTick && attackerInTick.position) {
+                                console.log('selectEvent: Attacker position 보완:', {
+                                    attacker_name: event.attacker.name,
+                                    original_position: event.attacker.position,
+                                    found_position: attackerInTick.position
+                                });
+                                event.attacker.position = attackerInTick.position;
+                                if (!event.attacker.team && attackerInTick.team) {
+                                    event.attacker.team = attackerInTick.team;
+                                }
+                            }
+                        }
+                    }
                 }
                 
                 // 두 플레이어의 중앙 좌표를 시뮬레이션 중앙에 배치
-                if (event.attacker.position[0] !== null && this.mapBounds) {
+                // mapBounds가 없어도 카메라 위치는 설정 (검은 화면 방지)
+                console.log('Camera setup check:', {
+                    attacker_position: event.attacker?.position,
+                    attacker_position_valid: event.attacker?.position?.[0] !== null && event.attacker?.position?.[0] !== undefined,
+                    victim_position: event.victim?.position,
+                    victim_position_valid: event.victim?.position?.[0] !== null && event.victim?.position?.[0] !== undefined,
+                    mapBounds: this.mapBounds ? 'EXISTS' : 'NULL'
+                });
+                
+                if (event.attacker && event.attacker.position && event.attacker.position[0] !== null) {
                     // 스케일링된 좌표 사용
                     const attackerPos = {
                         x: (event.attacker.position[0] - this.coordinateOffset.x) * this.coordinateScale,
@@ -5241,13 +5561,14 @@ Three.js · PapaParse · Pure JavaScript`
                             Math.pow(attackerPos.z - victimPos.z, 2)
                         );
                         
-                        // 거리에 따라 카메라 거리 조정 (최소 500, 최대 2000)
-                        this.cameraDistance = Math.max(500, Math.min(2000, distance * 1.5));
+                        // 포커스 모드: 더 확대되어 보이도록 카메라 거리 조정 (중앙 화면에 들어오게)
+                        // 거리에 따라 카메라 거리 조정 (더 가깝게, 최소 300, 최대 1200)
+                        this.cameraDistance = Math.max(300, Math.min(1200, distance * 0.8));
                     } else {
-                        // 피해자 위치가 없으면 기본 거리 사용
+                        // 피해자 위치가 없으면 기본 거리 사용 (포커스 모드에서는 더 가깝게)
                     const bounds = this.mapBounds;
                     const maxDim = Math.max(bounds.width, bounds.height, bounds.depth);
-                    this.cameraDistance = maxDim * 0.8;
+                        this.cameraDistance = maxDim * 0.4; // 포커스 모드에서는 더 가깝게 (0.8 -> 0.4)
                     }
                     
                     // 카메라 위치를 중앙 좌표 중심으로 배치
@@ -5264,15 +5585,51 @@ Three.js · PapaParse · Pure JavaScript`
                         this.panOffset.z = 0;
                     }
                     
-                    // 카메라 업데이트
+                    // 카메라 업데이트 (렌더링 전에 먼저 업데이트하여 검은 화면 방지)
+                    console.log('Camera target set to:', this.cameraTarget, 'distance:', this.cameraDistance);
                     this.updateCameraToTarget();
+                } else {
+                    console.warn('Attacker position is null, using fallback camera');
+                    // mapBounds가 없거나 attacker 위치가 없을 때 기본 카메라 설정
+                    if (this.mapBounds) {
+                        const bounds = this.mapBounds;
+                        this.cameraTarget = {
+                            x: bounds.centerX || 0,
+                            y: bounds.centerZ || 0,
+                            z: bounds.centerY || 0
+                        };
+                        const maxDim = Math.max(bounds.width || 1000, bounds.height || 1000, bounds.depth || 1000);
+                        this.cameraDistance = maxDim * 0.4;
+                        console.log('Fallback camera (mapBounds):', this.cameraTarget, 'distance:', this.cameraDistance);
+                        this.updateCameraToTarget();
+                    } else if (event.attacker.position[0] !== null) {
+                        // mapBounds가 없어도 attacker 위치를 사용하여 카메라 설정
+                        const attackerPos = {
+                            x: (event.attacker.position[0] - this.coordinateOffset.x) * this.coordinateScale,
+                            y: (event.attacker.position[2] - this.coordinateOffset.z) * this.coordinateScale,
+                            z: (event.attacker.position[1] - this.coordinateOffset.y) * this.coordinateScale
+                        };
+                        this.cameraTarget = attackerPos;
+                        this.cameraDistance = 800; // 기본 거리
+                        this.cameraRotationX = 0.4;
+                        this.cameraRotationY = Math.PI / 4;
+                        console.log('Fallback camera (attacker pos):', this.cameraTarget, 'distance:', this.cameraDistance);
+                        this.updateCameraToTarget();
+                    } else {
+                        console.error('Cannot set camera: attacker position is null and no mapBounds');
+                    }
+                }
+                
+                // 렌더링 수행 (카메라 업데이트 후)
+                if (targetTick !== -1) {
+                    this.renderTick(this.currentTick);
+                    this.updateTimeDisplay();
                 }
                 
                 // 이벤트 렌더링 (kill 이벤트 시각화)
-                const tickData = this.data.positions[this.currentTick];
-                if (tickData) {
-                    this.renderEvents(tickData.game_time);
-                }
+                // kill 이벤트의 정확한 game_time을 사용하여 이벤트가 확실히 표시되도록 함
+                const eventGameTime = event.game_time;
+                this.renderEvents(eventGameTime);
                 
                 // 이벤트 로그 업데이트
                 this.updateEventLog();
@@ -5347,6 +5704,12 @@ Three.js · PapaParse · Pure JavaScript`
                 this.focusTimeRange = null;
                 this.selectedEvent = null;
                 this.cameraTarget = null; // 타겟 해제
+                
+                // 전체 캐릭터가 다 보이도록 렌더링 다시 수행
+                if (this.data && this.data.positions && this.currentTick !== undefined) {
+                    this.renderTick(this.currentTick);
+                }
+                
                 this.updateCamera();
                 this.showFocusModeIndicator();
                 this.updateEventLog();
@@ -5420,25 +5783,25 @@ Three.js · PapaParse · Pure JavaScript`
                                     this.scene.children.splice(index, 1);
                                 }
                                 // parent에서도 제거
-                                if (obj.parent) {
-                                    obj.parent.remove(obj);
-                                }
+                            if (obj.parent) {
+                                obj.parent.remove(obj);
+                            }
                             } catch (e) {
                                 console.warn('플레이어 오브젝트 제거 중 오류:', e);
                             }
                             // 메시의 지오메트리와 머티리얼 정리
                             try {
-                                if (obj.geometry) {
-                                    obj.geometry.dispose();
+                            if (obj.geometry) {
+                                obj.geometry.dispose();
+                            }
+                            if (obj.material) {
+                                if (Array.isArray(obj.material)) {
+                                    obj.material.forEach(mat => {
+                                        if (mat) mat.dispose();
+                                    });
+                                } else {
+                                    obj.material.dispose();
                                 }
-                                if (obj.material) {
-                                    if (Array.isArray(obj.material)) {
-                                        obj.material.forEach(mat => {
-                                            if (mat) mat.dispose();
-                                        });
-                                    } else {
-                                        obj.material.dispose();
-                                    }
                                 }
                             } catch (e) {
                                 console.warn('플레이어 오브젝트 리소스 정리 중 오류:', e);
@@ -5531,19 +5894,19 @@ Three.js · PapaParse · Pure JavaScript`
                                     this.scene.children.splice(index, 1);
                                 }
                                 // parent에서도 제거
-                                if (obj.parent) {
-                                    obj.parent.remove(obj);
-                                }
+                            if (obj.parent) {
+                                obj.parent.remove(obj);
+                            }
                             } catch (e) {
                                 console.warn('라벨 제거 중 오류:', e);
                             }
                             // 스프라이트의 머티리얼과 텍스처 정리
                             try {
-                                if (obj.material) {
-                                    if (obj.material.map) {
-                                        obj.material.map.dispose();
-                                    }
-                                    obj.material.dispose();
+                            if (obj.material) {
+                                if (obj.material.map) {
+                                    obj.material.map.dispose();
+                                }
+                                obj.material.dispose();
                                 }
                             } catch (e) {
                                 console.warn('라벨 리소스 정리 중 오류:', e);
@@ -5614,12 +5977,33 @@ Three.js · PapaParse · Pure JavaScript`
                 }
 
                 // 플레이어 렌더링
-                for (let i = 0; i < tickData.players.length; i++) {
-                    const player = tickData.players[i];
+                // 포커스 모드에서 victim이 tickData.players에 없을 수 있으므로, event.victim을 강제로 추가
+                const playersToRender = [...tickData.players];
+                if (this.focusMode && this.selectedEvent && this.selectedEvent.victim) {
+                    const victimName = this.selectedEvent.victim.name;
+                    const victimInPlayers = playersToRender.find(p => p.name === victimName);
+                    // victim이 players에 없고, event.victim에 position이 있으면 강제로 추가
+                    if (!victimInPlayers && this.selectedEvent.victim.position && this.selectedEvent.victim.position[0] !== null) {
+                        // event.victim 정보를 사용하여 가상의 플레이어 객체 생성
+                        const virtualVictim = {
+                            name: victimName,
+                            position: this.selectedEvent.victim.position,
+                            team: this.selectedEvent.victim.team || 'T',
+                            weapon: this.selectedEvent.victim.weapon,
+                            health: 0 // 사망 상태로 표시하되 렌더링은 함
+                        };
+                        playersToRender.push(virtualVictim);
+                    }
+                }
+                
+                for (let i = 0; i < playersToRender.length; i++) {
+                    const player = playersToRender[i];
                     
                     // 사망한 플레이어는 시뮬레이션에서 제외 (렌더링 및 라벨 비표시)
+                    // 단, 포커스 모드에서 victim은 강제로 표시
                     const isDead = player.health !== null && player.health <= 0;
-                    if (isDead) {
+                    const isForcedVictim = (this.focusMode && this.selectedEvent && this.selectedEvent.victim && this.selectedEvent.victim.name === player.name);
+                    if (isDead && !isForcedVictim) {
                         continue;
                     }
                     
@@ -5640,7 +6024,23 @@ Three.js · PapaParse · Pure JavaScript`
                     
                     const isCT = player.team === 'CT';
                     const baseColor = isCT ? 0x5b9bd5 : 0xff6b6b;
-                    const color = baseColor;
+                    
+                    // 포커스 모드일 때 이벤트와 관련 없는 플레이어는 회색/투명 처리
+                    let color = baseColor;
+                    let opacity = 1.0;
+                    let isFocusedPlayer = false;
+                    
+                    if (this.focusMode && this.selectedEvent) {
+                        const isAttacker = this.selectedEvent.attacker && this.selectedEvent.attacker.name === player.name;
+                        const isVictim = this.selectedEvent.victim && this.selectedEvent.victim.name === player.name;
+                        isFocusedPlayer = isAttacker || isVictim;
+                        
+                        if (!isFocusedPlayer) {
+                            // 관련 없는 플레이어: 회색으로 변경하고 투명도 낮춤
+                            color = 0x666666; // 회색
+                            opacity = 0.3; // 투명도 30%
+                        }
+                    }
                     
                     // CT는 원형, T는 삼각형
                     // 맵 크기에 비례하여 플레이어 크기 조정 (정규화된 크기 사용)
@@ -5660,8 +6060,10 @@ Three.js · PapaParse · Pure JavaScript`
                     
                     const material = new THREE.MeshPhongMaterial({ 
                         color: color,
-                        emissive: baseColor,
-                        emissiveIntensity: 0.4
+                        emissive: isFocusedPlayer ? baseColor : 0x333333,
+                        emissiveIntensity: isFocusedPlayer ? 0.4 : 0.1,
+                        transparent: opacity < 1.0,
+                        opacity: opacity
                     });
                     
                     const mesh = new THREE.Mesh(geometry, material);
@@ -5765,17 +6167,22 @@ Three.js · PapaParse · Pure JavaScript`
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'top';
                     
+                    // 포커스 모드에서 관련 없는 플레이어 라벨도 투명 처리
+                    const labelOpacity = (this.focusMode && this.selectedEvent && !isFocusedPlayer) ? 0.3 : 1.0;
+                    
                     // 깔끔한 반투명 박스 배경
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    ctx.fillStyle = `rgba(0, 0, 0, ${0.8 * labelOpacity})`;
                     ctx.fillRect(0, 0, boxWidth, boxHeight);
                     
                     // 얇은 테두리
-                    ctx.strokeStyle = isCT ? '#5b9bd5' : '#ff6b6b';
+                    const borderColor = isFocusedPlayer ? (isCT ? '#5b9bd5' : '#ff6b6b') : '#666666';
+                    ctx.strokeStyle = borderColor;
                     ctx.lineWidth = 1;
                     ctx.strokeRect(0.5, 0.5, boxWidth - 1, boxHeight - 1);
                     
                     // 1줄: ID
-                    ctx.fillStyle = '#ffffff';
+                    const textColor = isFocusedPlayer ? '#ffffff' : '#999999';
+                    ctx.fillStyle = textColor;
                     const centerX = boxWidth / 2;
                     let textY = paddingY;
                     ctx.fillText(idText, centerX, textY);
@@ -5783,7 +6190,7 @@ Three.js · PapaParse · Pure JavaScript`
                     // 2줄: 무기 (아래에 작게)
                     ctx.font = weaponFont;
                     textY += 13 + lineGap;
-                    ctx.fillStyle = '#cccccc';
+                    ctx.fillStyle = isFocusedPlayer ? '#cccccc' : '#777777';
                     ctx.fillText(weaponText, centerX, textY);
                     
                     // 기존 라벨이 있으면 먼저 제거 (중복 방지)
@@ -5816,12 +6223,16 @@ Three.js · PapaParse · Pure JavaScript`
                     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ 
                         map: texture,
                         transparent: true,
+                        opacity: labelOpacity,
                         depthTest: false
                     }));
                     // 라벨 식별을 위한 userData 추가
                     sprite.userData.isPlayerLabel = true;
                     sprite.userData.playerName = player.name;
-                    const labelYOffset = 18;
+                    
+                    // 원뿔 고정 배치: 플레이어 정보 박스를 플레이어 표식 바로 위에 고정 배치
+                    const labelYOffset = 12; // 고정 오프셋 (플레이어 표식 바로 위)
+                    
                     // 스케일된 좌표 기준으로 라벨 위치 설정
                     sprite.position.set(scaledX, scaledZ + labelYOffset, scaledY);
                     // 캔버스 비율에 맞춘 스프라이트 크기 (아주 작게)
@@ -6466,54 +6877,218 @@ Three.js · PapaParse · Pure JavaScript`
                 if (gameTime === null || gameTime === undefined) return;
 
                 this.data.events.forEach(event => {
-                    const timeDiff = Math.abs(event.game_time - gameTime);
+                    // 디버깅: 60587 플레이어 이벤트만 로그
+                    if (event.attacker?.name === '60587' || event.victim?.name === '60587') {
+                        console.log('=== renderEvents 디버깅 (60587) ===', {
+                            event_tick: event.tick,
+                            event_game_time: event.game_time,
+                            gameTime: gameTime,
+                            attacker: {
+                                name: event.attacker?.name,
+                                position: event.attacker?.position
+                            },
+                            victim: {
+                                name: event.victim?.name,
+                                position: event.victim?.position
+                            },
+                            focusMode: this.focusMode,
+                            selectedEvent_tick: this.selectedEvent?.tick,
+                            selectedEvent_game_time: this.selectedEvent?.game_time
+                        });
+                    }
+                    
+                    // victim의 position이 null이면 해당 틱의 players에서 찾아서 보완
+                    if (event.victim && event.victim.name && (!event.victim.position || event.victim.position[0] === null)) {
+                        const tickIndex = this.findTickByTime(event.game_time);
+                        if (tickIndex !== -1) {
+                            const tickData = this.data.positions[tickIndex];
+                            if (tickData && tickData.players) {
+                                const victimInTick = tickData.players.find(p => p.name === event.victim.name);
+                                if (victimInTick && victimInTick.position) {
+                                    console.log('Victim position 보완:', {
+                                        victim_name: event.victim.name,
+                                        original_position: event.victim.position,
+                                        found_position: victimInTick.position
+                                    });
+                                    event.victim.position = victimInTick.position;
+                                    // team 정보도 보완
+                                    if (!event.victim.team && victimInTick.team) {
+                                        event.victim.team = victimInTick.team;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // attacker의 position이 null이면 해당 틱의 players에서 찾아서 보완
+                    if (event.attacker && event.attacker.name && (!event.attacker.position || event.attacker.position[0] === null)) {
+                        const tickIndex = this.findTickByTime(event.game_time);
+                        if (tickIndex !== -1) {
+                            const tickData = this.data.positions[tickIndex];
+                            if (tickData && tickData.players) {
+                                const attackerInTick = tickData.players.find(p => p.name === event.attacker.name);
+                                if (attackerInTick && attackerInTick.position) {
+                                    console.log('Attacker position 보완:', {
+                                        attacker_name: event.attacker.name,
+                                        original_position: event.attacker.position,
+                                        found_position: attackerInTick.position
+                                    });
+                                    event.attacker.position = attackerInTick.position;
+                                    // team 정보도 보완
+                                    if (!event.attacker.team && attackerInTick.team) {
+                                        event.attacker.team = attackerInTick.team;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    let timeDiff = Math.abs(event.game_time - gameTime);
                     // 정확히 해당 틱에만 표시 (0.05초 이내, 약 3틱)
                     // 포커스 모드일 때는 선택된 이벤트만 표시
+                    let timeMatch = false;
                     if (this.focusMode && this.selectedEvent) {
                         // 포커스 모드: 선택된 이벤트와 정확히 일치하는 경우만 표시
-                        // tick과 game_time 모두 확인하여 정확한 이벤트만 선택
-                        const tickMatch = event.tick === this.selectedEvent.tick;
-                        const timeMatch = Math.abs(event.game_time - this.selectedEvent.game_time) < 0.01;
-                        if (!tickMatch || !timeMatch) {
+                        // game_time을 우선적으로 확인하고, tick도 확인 (tick이 없을 수 있으므로)
+                        timeMatch = Math.abs(event.game_time - this.selectedEvent.game_time) < 0.01;
+                        const tickMatch = (this.selectedEvent.tick === undefined || event.tick === undefined) 
+                            ? true  // tick 정보가 없으면 timeMatch만 확인
+                            : (event.tick === this.selectedEvent.tick);
+                        
+                        // game_time이 일치하면 표시 (tick은 보조 확인)
+                        if (!timeMatch) {
                             return; // 선택된 이벤트가 아니면 스킵
                         }
+                        // timeMatch가 true이면 tickMatch와 관계없이 표시 (tick 정보가 부정확할 수 있음)
+                        // 포커스 모드에서 선택된 이벤트는 timeDiff 조건 무시하고 표시
+                        timeDiff = 0; // 강제로 조건 통과
                     }
                     
                     // kill 이벤트만 attacker/dead 박스 표시
                     const isKillEvent = (event.event_type_lower || '').includes('kill') || (event.event_type_lower || '').includes('died');
                     
-                    if (timeDiff < 0.05 && event.attacker && event.attacker.position && event.attacker.position[0] !== null) {
+                    // 포커스 모드일 때는 timeDiff 조건을 완화 (선택된 이벤트는 확실히 표시)
+                    // 포커스 모드에서 선택된 이벤트는 timeDiff 조건 완전히 무시
+                    const shouldShow = (this.focusMode && this.selectedEvent && timeMatch) 
+                        ? true  // 포커스 모드에서 선택된 이벤트는 무조건 표시
+                        : (timeDiff < 0.05);  // 일반 모드는 기존 조건 유지
+                    
+                    if (shouldShow && event.attacker && event.attacker.position && event.attacker.position[0] !== null) {
                         // 스케일링된 좌표 사용
                         const attackerScaledX = (event.attacker.position[0] - this.coordinateOffset.x) * this.coordinateScale;
                         const attackerScaledY = (event.attacker.position[1] - this.coordinateOffset.y) * this.coordinateScale;
                         const attackerScaledZ = (event.attacker.position[2] - this.coordinateOffset.z) * this.coordinateScale;
                         
                         // kill 이벤트일 때만 공격자 플레이어를 원 테두리로 감싸기
+                        // 플레이어 크기에 맞춰 링 반지름 동적으로 조정
                         if (isKillEvent) {
-                        const innerRadius = 18;
-                        const outerRadius = 20;
-                        const ringGeometry = new THREE.RingGeometry(innerRadius, outerRadius, 32);
-                        const material = new THREE.MeshPhongMaterial({ 
-                            color: 0xff0000,
-                            emissive: 0xff0000,
-                            emissiveIntensity: 0.6,
+                        const mapSizeForRing = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth, this.mapBounds.height) : 1000;
+                        const normalizedMapSizeForRing = this.mapBounds?.normalizedWidth || mapSizeForRing;
+                        const playerScaleForRing = Math.max(0.25, Math.min(0.6, normalizedMapSizeForRing / 5000));
+                        const baseSizeForRing = 5 * playerScaleForRing;
+                        const innerRadius = baseSizeForRing * 2.0;
+                        const outerRadius = baseSizeForRing * 2.4;
+
+                        // 공격자: 빨간 링 (attacker 박스 색상과 동일: rgba(255, 77, 79))
+                        const attackerRing = new THREE.Mesh(
+                            new THREE.RingGeometry(innerRadius, outerRadius, 32),
+                            new THREE.MeshPhongMaterial({ 
+                                color: 0xff4d4f, // rgba(255, 77, 79) = 0xff4d4f
+                                emissive: 0xff4d4f,
+                                emissiveIntensity: 0.7,
                             side: THREE.DoubleSide
-                        });
-                        const marker = new THREE.Mesh(ringGeometry, material);
-                        // 공격자 플레이어 위치에 배치 (지면 높이)
-                        marker.position.set(
+                            })
+                        );
+                        attackerRing.position.set(
                             attackerScaledX,
                             attackerScaledZ, // Three.js Y축
                             attackerScaledY  // Three.js Z축
                         );
-                        // 수평면에 배치 (지면에 놓인 원 형태)
-                        marker.rotation.x = -Math.PI / 2;
-                        this.scene.add(marker);
-                        this.eventMarkers.push(marker);
+                        attackerRing.rotation.x = -Math.PI / 2;
+                        this.scene.add(attackerRing);
+                        this.eventMarkers.push(attackerRing);
                         }
 
-                        // Attacker 라벨 (kill 이벤트일 때만 표시)
-                        if (isKillEvent && timeDiff < 2.0) {
+                        // Attacker 라벨은 victim이 있을 때만 생성 (수평 배치를 위해)
+                        // 아래 victim 블록에서 처리
+
+                        // kill 이벤트이고 victim이 있을 때만 연결선과 dead 박스 표시
+                        console.log('Kill event check:', {
+                            isKillEvent: isKillEvent,
+                            victim_name: event.victim?.name,
+                            victim_position: event.victim?.position,
+                            victim_position_valid: event.victim?.position?.[0] !== null && event.victim?.position?.[0] !== undefined
+                        });
+                        
+                        if (isKillEvent && event.victim && event.victim.position && event.victim.position[0] !== null) {
+                            const victimScaledX = (event.victim.position[0] - this.coordinateOffset.x) * this.coordinateScale;
+                            const victimScaledY = (event.victim.position[1] - this.coordinateOffset.y) * this.coordinateScale;
+                            const victimScaledZ = (event.victim.position[2] - this.coordinateOffset.z) * this.coordinateScale;
+                            
+                            // 피격자 링(노란색) 추가
+                            const mapSizeForRing = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth, this.mapBounds.height) : 1000;
+                            const normalizedMapSizeForRing = this.mapBounds?.normalizedWidth || mapSizeForRing;
+                            const playerScaleForRing = Math.max(0.25, Math.min(0.6, normalizedMapSizeForRing / 5000));
+                            const baseSizeForRing = 5 * playerScaleForRing;
+                            const innerRadius = baseSizeForRing * 2.0;
+                            const outerRadius = baseSizeForRing * 2.4;
+                            const victimRing = new THREE.Mesh(
+                                new THREE.RingGeometry(innerRadius, outerRadius, 32),
+                                new THREE.MeshPhongMaterial({ 
+                                    color: 0xffd93d,
+                                    emissive: 0xffd93d,
+                                    emissiveIntensity: 0.7,
+                                    side: THREE.DoubleSide
+                                })
+                            );
+                            victimRing.position.set(
+                                victimScaledX,
+                                victimScaledZ, // Three.js Y축
+                                victimScaledY  // Three.js Z축
+                            );
+                            victimRing.rotation.x = -Math.PI / 2;
+                            this.scene.add(victimRing);
+                            this.eventMarkers.push(victimRing);
+                            
+                            // 플레이어 모델의 실제 중앙 높이 계산
+                            const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth, this.mapBounds.height) : 1000;
+                            const normalizedMapSize = this.mapBounds?.normalizedWidth || mapSize;
+                            const playerScale = Math.max(0.15, Math.min(0.4, normalizedMapSize / 5000));
+                            const baseSize = 3.5 * playerScale;
+                            
+                            // attacker와 victim의 team 정보 확인하여 모델 중앙 높이 계산
+                            const attackerIsCT = event.attacker.team === 'CT';
+                            const victimIsCT = event.victim.team === 'CT';
+                            
+                            // CT는 구체(중심 = scaledZ), T는 원뿔(중심 = scaledZ + baseSize)
+                            const attackerCenterY = attackerIsCT ? attackerScaledZ : attackerScaledZ + baseSize;
+                            const victimCenterY = victimIsCT ? victimScaledZ : victimScaledZ + baseSize;
+                            
+                            // 상단 라벨 위치 (두 플레이어의 중간 지점 위에 같은 높이로 수평 배치)
+                            // 플레이어 정보 박스 위에 자연스럽게 배치되도록 조정
+                            const maxPlayerHeight = Math.max(
+                                attackerIsCT ? baseSize : (baseSize * 2),
+                                victimIsCT ? baseSize : (baseSize * 2)
+                            );
+                            const playerInfoBoxHeight = 10; // 플레이어 정보 박스 높이 (스프라이트 크기)
+                            const LABEL_Y_OFFSET = maxPlayerHeight * 0.5 + playerInfoBoxHeight + 25; // 플레이어 표식 위 + 정보 박스 + 여유 공간
+                            const midX = (attackerScaledX + victimScaledX) / 2;
+                            const midZ = (attackerScaledZ + victimScaledZ) / 2;
+                            const midY = (attackerScaledY + victimScaledY) / 2;
+                            const labelHeight = Math.max(attackerScaledZ, victimScaledZ) + LABEL_Y_OFFSET;
+                            
+                            // ATTACKER 박스는 왼쪽, DEAD 박스는 오른쪽에 배치
+                            const labelSpacing = 80; // 두 박스 사이 간격
+                            const attackerLabelX = midX - labelSpacing / 2;
+                            const victimLabelX = midX + labelSpacing / 2;
+                            const attackerLabelTopY = labelHeight;
+                            const victimLabelTopY = labelHeight;
+                            
+                            // Attacker 라벨 생성 (victim이 있을 때만, 수평 배치를 위해)
+                            // 포커스 모드에서 선택된 이벤트는 timeDiff 조건 무시
+                            const shouldShowAttackerLabel = (this.focusMode && this.selectedEvent && timeMatch) 
+                                ? true 
+                                : (timeDiff < 2.0);
+                            if (shouldShowAttackerLabel) {
                             const fadeStart = 1.5;
                             const fadeEnd = 2.0;
                             let opacity = 1.0;
@@ -6548,8 +7123,8 @@ Three.js · PapaParse · Pure JavaScript`
                                 attackerCanvas.width = maxWidth;
                                 attackerCanvas.height = height;
                                 
-                                // 배경 (더 불투명하게)
-                                attackerCtx.fillStyle = `rgba(0, 0, 0, ${0.95 * opacity})`;
+                                    // 배경
+                                    attackerCtx.fillStyle = `rgba(255, 77, 79, ${0.25 * opacity})`; // 연한 빨간 배경
                                 attackerCtx.fillRect(0, 0, attackerCanvas.width, attackerCanvas.height);
                                 
                                 // 그림자 효과
@@ -6558,8 +7133,8 @@ Three.js · PapaParse · Pure JavaScript`
                                 attackerCtx.shadowOffsetX = 2;
                                 attackerCtx.shadowOffsetY = 2;
                                 
-                                // 테두리 (공격자는 초록색, 더 두껍게)
-                                attackerCtx.strokeStyle = `rgba(76, 175, 80, ${opacity})`;
+                                    // 테두리 (공격자: 빨간색)
+                                    attackerCtx.strokeStyle = `rgba(255, 77, 79, ${opacity})`;
                                 attackerCtx.lineWidth = 3;
                                 attackerCtx.strokeRect(2, 2, attackerCanvas.width - 4, attackerCanvas.height - 4);
                                 
@@ -6571,8 +7146,8 @@ Three.js · PapaParse · Pure JavaScript`
                                 
                                 let yPos = padding + 14;
                                 
-                                // ATTACKER 텍스트 (더 밝고 선명하게)
-                                attackerCtx.fillStyle = `rgba(100, 221, 123, ${opacity})`; // 더 밝은 초록색
+                                    // ATTACKER 텍스트 (흰색)
+                                    attackerCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`; // 흰색
                                 attackerCtx.font = 'bold 18px Arial';
                                 attackerCtx.textAlign = 'center';
                                 // 텍스트 그림자
@@ -6582,9 +7157,9 @@ Three.js · PapaParse · Pure JavaScript`
                                 attackerCtx.shadowColor = 'transparent';
                                 attackerCtx.shadowBlur = 0;
                                 
-                                // 공격자 이름 (더 선명하게)
+                                    // 공격자 이름 (흰색)
                                 yPos += lineHeight;
-                                attackerCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                                    attackerCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`; // 흰색
                                 attackerCtx.font = 'bold 16px Arial';
                                 attackerCtx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                                 attackerCtx.shadowBlur = 2;
@@ -6592,10 +7167,10 @@ Three.js · PapaParse · Pure JavaScript`
                                 attackerCtx.shadowColor = 'transparent';
                                 attackerCtx.shadowBlur = 0;
                                 
-                                // 무기 정보
+                                    // 무기 정보 (흰색)
                                 if (event.weapon) {
                                     yPos += lineHeight;
-                                    attackerCtx.fillStyle = `rgba(220, 220, 220, ${opacity})`; // 더 밝은 회색
+                                        attackerCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`; // 흰색
                                     attackerCtx.font = 'bold 13px Arial';
                                     attackerCtx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                                     attackerCtx.shadowBlur = 2;
@@ -6611,37 +7186,59 @@ Three.js · PapaParse · Pure JavaScript`
                                     opacity: opacity,
                                     depthTest: false
                                 }));
-                                // 플레이어 표시 바로 위에 배치 (여백 최소화)
+                                    // 상단 라벨 위치에 수평으로 배치 (attacker는 왼쪽)
                                 attackerSprite.position.set(
-                                    attackerScaledX,
-                                    attackerScaledZ + 20, // 플레이어 바로 위 (여백 최소화)
-                                    attackerScaledY
-                                );
-                                attackerSprite.scale.set(maxWidth * 0.1, height * 0.1, 1);
+                                        attackerLabelX,
+                                        attackerLabelTopY,
+                                        midY
+                                    );
+                                    // 살짝 더 크게 스케일링하여 키워드 효과 강화
+                                    attackerSprite.scale.set(maxWidth * 0.14, height * 0.14, 1);
                                 this.scene.add(attackerSprite);
                                 this.eventMarkers.push(attackerSprite);
                             }
                         }
 
-                        // kill 이벤트이고 victim이 있을 때만 연결선과 dead 박스 표시
-                        if (isKillEvent && event.victim.position[0] !== null) {
-                            const victimScaledX = (event.victim.position[0] - this.coordinateOffset.x) * this.coordinateScale;
-                            const victimScaledY = (event.victim.position[1] - this.coordinateOffset.y) * this.coordinateScale;
-                            const victimScaledZ = (event.victim.position[2] - this.coordinateOffset.z) * this.coordinateScale;
+                            // 상단 ATTACKER ↔ DEAD 라벨 사이 빨간 선 (구조 상단 연결)
+                            const topLineGeom = new THREE.BufferGeometry().setFromPoints([
+                                new THREE.Vector3(attackerLabelX, attackerLabelTopY, midY),
+                                new THREE.Vector3(victimLabelX, victimLabelTopY, midY)
+                            ]);
+                            const topLineMat = new THREE.LineBasicMaterial({
+                                color: 0xff0000,
+                                opacity: 0.9,
+                                transparent: true,
+                                linewidth: 2
+                            });
+                            const topLine = new THREE.Line(topLineGeom, topLineMat);
+                            this.scene.add(topLine);
+                            this.eventMarkers.push(topLine);
                             
-                            // 플레이어 모델의 실제 중앙 높이 계산
-                            const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth, this.mapBounds.height) : 1000;
-                            const normalizedMapSize = this.mapBounds?.normalizedWidth || mapSize;
-                            const playerScale = Math.max(0.15, Math.min(0.4, normalizedMapSize / 5000));
-                            const baseSize = 3.5 * playerScale;
-                            
-                            // attacker와 victim의 team 정보 확인하여 모델 중앙 높이 계산
-                            const attackerIsCT = event.attacker.team === 'CT';
-                            const victimIsCT = event.victim.team === 'CT';
-                            
-                            // CT는 구체(중심 = scaledZ), T는 원뿔(중심 = scaledZ + baseSize)
-                            const attackerCenterY = attackerIsCT ? attackerScaledZ : attackerScaledZ + baseSize;
-                            const victimCenterY = victimIsCT ? victimScaledZ : victimScaledZ + baseSize;
+                            // 상단 라벨과 플레이어를 연결하는 파란색 라인 (ATTACKER/dead 구조를 하단 플레이어와 분리해 시각화)
+                            const linkMaterial = new THREE.LineBasicMaterial({
+                                color: 0x2a6f9b,
+                                opacity: 0.9,
+                                transparent: true,
+                                linewidth: 2
+                            });
+
+                            // 공격자: 상단 라벨 → 플레이어 중심
+                            const attackerLinkGeom = new THREE.BufferGeometry().setFromPoints([
+                                new THREE.Vector3(attackerLabelX, attackerLabelTopY, midY),
+                                new THREE.Vector3(attackerScaledX, attackerCenterY, attackerScaledY)
+                            ]);
+                            const attackerLink = new THREE.Line(attackerLinkGeom, linkMaterial);
+                            this.scene.add(attackerLink);
+                            this.eventMarkers.push(attackerLink);
+
+                            // 피격자: 상단 라벨 → 플레이어 중심
+                            const victimLinkGeom = new THREE.BufferGeometry().setFromPoints([
+                                new THREE.Vector3(victimLabelX, victimLabelTopY, midY),
+                                new THREE.Vector3(victimScaledX, victimCenterY, victimScaledY)
+                            ]);
+                            const victimLink = new THREE.Line(victimLinkGeom, linkMaterial);
+                            this.scene.add(victimLink);
+                            this.eventMarkers.push(victimLink);
                             
                             // src-trg 빨간색 연결선 (플레이어 모델 중앙끼리 직접 연결)
                             const lineGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -6668,7 +7265,11 @@ Three.js · PapaParse · Pure JavaScript`
 
                             // Victim 'DEAD' label with HEADSHOT and weapon info
                             // 정확히 해당 틱에만 표시하고 2초간 페이드아웃
-                            if (timeDiff < 2.0) {
+                            // 포커스 모드에서 선택된 이벤트는 timeDiff 조건 무시
+                            const shouldShowDeadLabel = (this.focusMode && this.selectedEvent && timeMatch) 
+                                ? true 
+                                : (timeDiff < 2.0);
+                            if (shouldShowDeadLabel) {
                                 const fadeStart = 1.5; // 1.5초 후부터 페이드 시작
                                 const fadeEnd = 2.0; // 2초에 완전히 사라짐
                                 let opacity = 1.0;
@@ -6709,8 +7310,8 @@ Three.js · PapaParse · Pure JavaScript`
                                     canvas.width = maxWidth;
                                     canvas.height = height;
                                     
-                                    // 배경 (더 불투명하게)
-                                    ctx.fillStyle = `rgba(0, 0, 0, ${0.95 * opacity})`;
+                                    // 배경 (노란색 계열)
+                                    ctx.fillStyle = `rgba(255, 217, 61, ${0.25 * opacity})`;
                                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                                     
                                     // 그림자 효과
@@ -6719,8 +7320,8 @@ Three.js · PapaParse · Pure JavaScript`
                                     ctx.shadowOffsetX = 2;
                                     ctx.shadowOffsetY = 2;
                                     
-                                    // 테두리 (더 두껍게)
-                                    ctx.strokeStyle = `rgba(255, 107, 107, ${opacity})`;
+                                    // 테두리 (노란색)
+                                    ctx.strokeStyle = `rgba(255, 217, 61, ${opacity})`;
                                     ctx.lineWidth = 3;
                                     ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
                                     
@@ -6732,8 +7333,8 @@ Three.js · PapaParse · Pure JavaScript`
                                     
                                     let yPos = padding + 14;
                                     
-                                    // DEAD 텍스트 (victim 관점, 더 밝고 선명하게)
-                                    ctx.fillStyle = `rgba(255, 80, 80, ${opacity})`; // 더 밝은 빨간색
+                                    // DEAD 텍스트 (흰색)
+                                    ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`; // 흰색
                                     ctx.font = 'bold 18px Arial';
                                     ctx.textAlign = 'center';
                                     // 텍스트 그림자
@@ -6743,10 +7344,10 @@ Three.js · PapaParse · Pure JavaScript`
                                     ctx.shadowColor = 'transparent';
                                     ctx.shadowBlur = 0;
                                     
-                                    // HEADSHOT 표시 (헤드샷인 경우)
+                                    // HEADSHOT 표시 (헤드샷인 경우, 흰색)
                                     if (event.headshot) {
                                         yPos += lineHeight;
-                                        ctx.fillStyle = `rgba(255, 235, 59, ${opacity})`; // 더 밝은 노란색
+                                        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`; // 흰색
                                         ctx.font = 'bold 14px Arial';
                                         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                                         ctx.shadowBlur = 2;
@@ -6755,9 +7356,9 @@ Three.js · PapaParse · Pure JavaScript`
                                         ctx.shadowBlur = 0;
                                     }
                                     
-                                    // victim 이름 (더 선명하게)
+                                    // victim 이름 (흰색)
                                     yPos += lineHeight;
-                                    ctx.fillStyle = `rgba(255, 150, 150, ${opacity})`; // 더 밝은 빨간색
+                                    ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`; // 흰색
                                     ctx.font = 'bold 14px Arial';
                                     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                                     ctx.shadowBlur = 2;
@@ -6765,10 +7366,10 @@ Three.js · PapaParse · Pure JavaScript`
                                     ctx.shadowColor = 'transparent';
                                     ctx.shadowBlur = 0;
                                     
-                                    // 무기 정보 (victim이 죽은 무기)
+                                    // 무기 정보 (victim이 죽은 무기, 흰색)
                                     if (event.weapon) {
                                         yPos += lineHeight;
-                                        ctx.fillStyle = `rgba(220, 220, 220, ${opacity})`; // 더 밝은 회색
+                                        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`; // 흰색
                                         ctx.font = 'bold 13px Arial';
                                         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                                         ctx.shadowBlur = 2;
@@ -6784,13 +7385,14 @@ Three.js · PapaParse · Pure JavaScript`
                                         opacity: opacity,
                                         depthTest: false // 항상 앞에 표시
                                     }));
-                                    // 플레이어 표시 바로 위에 배치 (여백 최소화)
+                                    // 상단 라벨 위치에 수평으로 배치 (dead는 오른쪽)
                                     sprite.position.set(
-                                        victimScaledX,
-                                        victimScaledZ + 20, // 플레이어 바로 위 (여백 최소화)
-                                        victimScaledY
+                                        victimLabelX,
+                                        victimLabelTopY,
+                                        midY
                                     );
-                                    sprite.scale.set(maxWidth * 0.1, height * 0.1, 1);
+                                    // DEAD 박스도 조금 더 크게
+                                    sprite.scale.set(maxWidth * 0.14, height * 0.14, 1);
                                     this.scene.add(sprite);
                                     this.eventMarkers.push(sprite);
                                 }
@@ -6871,8 +7473,8 @@ Three.js · PapaParse · Pure JavaScript`
 
                     // 틱 업데이트 루프 (update 단계)
                     while (this.timeAccumulator > 0 && ticksProcessed < maxTicksPerFrame) {
-                        const tickData = this.data.positions[this.currentTick];
-                        const nextTickData = this.data.positions[this.currentTick + 1];
+                    const tickData = this.data.positions[this.currentTick];
+                    const nextTickData = this.data.positions[this.currentTick + 1];
                         if (!tickData || !nextTickData) break;
 
                         let tickInterval = (nextTickData.game_time - tickData.game_time) * 1000; // ms
@@ -6926,16 +7528,28 @@ Three.js · PapaParse · Pure JavaScript`
                     // 재생 중에는 항상 현재 틱을 렌더링
                     if (this.currentTick < this.data.positions.length) {
                         // Follow selected player if enabled
-                        if (this.followPlayer && this.selectedPlayer) {
+                            if (this.followPlayer && this.selectedPlayer) {
                             // 현재 틱의 플레이어 데이터에서 직접 찾기
                             const tickData = this.data.positions[this.currentTick];
                             if (tickData && tickData.players) {
-                                const player = tickData.players.find(p => p.name === this.selectedPlayer);
-                                if (player && player.position && Array.isArray(player.position)) {
+                                // 플레이어 이름을 문자열로 정확히 비교 (타입 변환 보장)
+                                const selectedPlayerName = String(this.selectedPlayer);
+                                const player = tickData.players.find(p => String(p.name) === selectedPlayerName);
+                                
+                                // 디버깅: 플레이어 찾기 확인
+                                if (!player && this.selectedPlayer) {
+                                    console.log('FOLLOW 모드: 플레이어를 찾지 못함', {
+                                        selectedPlayer: this.selectedPlayer,
+                                        selectedPlayerType: typeof this.selectedPlayer,
+                                        availablePlayers: tickData.players.map(p => ({ name: p.name, nameType: typeof p.name }))
+                                    });
+                                }
+                                
+                                    if (player && player.position && Array.isArray(player.position)) {
                                     // 플레이어 위치를 카메라 타겟으로 설정 (스케일링된 좌표 사용)
-                                    const scaledX = (player.position[0] - this.coordinateOffset.x) * this.coordinateScale;
-                                    const scaledY = (player.position[1] - this.coordinateOffset.y) * this.coordinateScale;
-                                    const scaledZ = (player.position[2] - this.coordinateOffset.z) * this.coordinateScale;
+                                        const scaledX = (player.position[0] - this.coordinateOffset.x) * this.coordinateScale;
+                                        const scaledY = (player.position[1] - this.coordinateOffset.y) * this.coordinateScale;
+                                        const scaledZ = (player.position[2] - this.coordinateOffset.z) * this.coordinateScale;
                                     this.cameraTarget = { 
                                         x: scaledX, // X
                                         y: scaledZ, // Three.js Y축 (높이)
@@ -6964,6 +7578,7 @@ Three.js · PapaParse · Pure JavaScript`
                                     }
                                     
                                     // 수동 줌 조정이 없을 때만 자동으로 카메라 거리 계산
+                                    // 하지만 manualZoomInFollow가 true여도 최소 거리는 보장
                                     if (!this.manualZoomInFollow) {
                                     // X, Z 범위에 맞춰서 카메라 거리 계산 (2D 뷰)
                                     if (minX !== Infinity && minZ !== Infinity) {
@@ -6979,7 +7594,8 @@ Three.js · PapaParse · Pure JavaScript`
                                             const aspect = screenWidth / screenHeight;
                                             
                                             // 화면 크기에 맞춰서 플레이어 범위를 화면에 맞게 조정
-                                            const targetScreenRatio = 0.8; // 화면의 80%를 사용
+                                            // FOLLOW 모드: 전체 맵이 보이도록 더 넓은 범위 사용
+                                            const targetScreenRatio = 0.5; // 화면의 50%를 사용 (더 넓은 뷰)
                                             
                                             const distanceX = (width / 2) / Math.tan(fov / 2) / aspect / targetScreenRatio;
                                             const distanceZ = (depth / 2) / Math.tan(fov / 2) / targetScreenRatio;
@@ -7003,19 +7619,70 @@ Three.js · PapaParse · Pure JavaScript`
                                             }
                                             
                                             // 최소/최대 거리 제한
-                                            const minDistance = Math.max(50, screenMinDim * 0.1);
-                                            const maxDistance = screenMinDim * 5.0;
+                                            // FOLLOW 모드: 전체 맵이 보이도록 최소 거리를 늘림
+                                            const minDistance = Math.max(500, screenMinDim * 0.8); // 최소 거리 증가
+                                            const maxDistance = screenMinDim * 8.0; // 최대 거리도 증가
                                             
-                                            this.cameraDistance = Math.max(minDistance, Math.min(calculatedDistance, maxDistance));
+                                            // mapBounds를 고려하여 전체 맵이 보이도록 조정
+                                            let finalDistance = Math.max(minDistance, Math.min(calculatedDistance, maxDistance));
+                                            
+                                            // mapBounds가 있으면 전체 맵이 보이도록 추가 조정
+                                            if (this.mapBounds) {
+                                                const mapSize = Math.max(this.mapBounds.width, this.mapBounds.depth);
+                                                const normalizedMapSize = this.mapBounds.normalizedWidth || mapSize;
+                                                // 전체 맵이 보이도록 필요한 최소 거리 계산
+                                                const requiredDistance = normalizedMapSize * 0.6;
+                                                // 계산된 거리와 필요한 거리 중 더 큰 값 사용
+                                                finalDistance = Math.max(finalDistance, requiredDistance);
+                                            }
+                                            
+                                            this.cameraDistance = finalDistance;
                                     } else {
-                                        // 플레이어가 없으면 기본 거리
-                                        const mapSize = this.mapBounds ? Math.max(this.mapBounds.width, this.mapBounds.depth) : 1000;
-                                        this.cameraDistance = Math.max(500, Math.min(5000, mapSize * 0.1));
+                                        // 플레이어가 없으면 기본 거리 (전체 맵이 보이도록)
+                                        if (this.mapBounds) {
+                                            const mapSize = Math.max(this.mapBounds.width, this.mapBounds.depth, this.mapBounds.height);
+                                            const normalizedMapSize = this.mapBounds.normalizedWidth || mapSize;
+                                            this.cameraDistance = Math.max(800, Math.min(3000, normalizedMapSize * 0.8));
+                                        } else {
+                                            const screenMinDim = Math.min(
+                                                document.getElementById('canvas-container')?.clientWidth || 800,
+                                                document.getElementById('canvas-container')?.clientHeight || 600
+                                            );
+                                            this.cameraDistance = Math.max(800, screenMinDim * 1.2);
                                         }
+                                        }
+                                    } else {
+                                        // manualZoomInFollow가 true일 때는 사용자가 설정한 거리를 유지
+                                        // 최소 거리만 보장 (너무 작으면 안전한 최소값으로만 설정)
+                                        if (!Number.isFinite(this.cameraDistance) || this.cameraDistance <= 0) {
+                                            const container = document.getElementById('canvas-container');
+                                            const screenWidth = container ? container.clientWidth : 800;
+                                            const screenHeight = container ? container.clientHeight : 600;
+                                            const screenMinDim = Math.min(screenWidth, screenHeight);
+                                            this.cameraDistance = Math.max(600, screenMinDim * 0.6);
+                                        }
+                                        // 이미 설정된 거리가 있으면 그대로 유지 (자동 계산 안 함)
                                     }
+                                    
+                                    // 카메라 업데이트 (플레이어를 찾았을 때)
+                                    this.updateCamera();
                                     
                                     // 패닝 오프셋은 유지 (Shift로 패닝 가능하도록)
                                     // Follow 모드 시작 시에만 초기화
+                                } else {
+                                    // 플레이어를 찾지 못했을 때도 카메라 거리 보장
+                                    if (!Number.isFinite(this.cameraDistance) || this.cameraDistance <= 0 || this.cameraDistance < 200) {
+                                        const container = document.getElementById('canvas-container');
+                                        const screenWidth = container ? container.clientWidth : 800;
+                                        const screenHeight = container ? container.clientHeight : 600;
+                                        const screenMinDim = Math.min(screenWidth, screenHeight);
+                                        this.cameraDistance = Math.max(600, screenMinDim * 0.6);
+                                    }
+                                    // 카메라 타겟이 없으면 기본 타겟 사용
+                                    if (!this.cameraTarget) {
+                                        this.cameraTarget = this.defaultTarget || { x: 0, y: 0, z: 0 };
+                                    }
+                                    this.updateCamera();
                                 }
                             }
                         }
@@ -7030,6 +7697,11 @@ Three.js · PapaParse · Pure JavaScript`
                 }
 
                 this.renderer.render(this.scene, this.camera);
+                    
+                    // 카메라 정보 업데이트 (매 프레임마다)
+                    if (this.updateCameraInfo) {
+                        this.updateCameraInfo();
+                    }
             }
         }
 

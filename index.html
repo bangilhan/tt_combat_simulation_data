@@ -675,10 +675,40 @@
             margin-bottom: 8px;
             border-bottom: 1px solid rgba(74, 143, 226, 0.3);
             padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #camera-info-title:hover {
+            color: #4a90e2;
+        }
+
+        #camera-info-toggle {
+            font-size: 10px;
+            color: #8a8fa5;
+            margin-left: 8px;
+            transition: transform 0.2s;
+        }
+
+        #camera-info-title:hover #camera-info-toggle {
+            color: #4a90e2;
+        }
+
+        #camera-info.collapsed #camera-info-content {
+            display: none;
+        }
+
+        #camera-info.collapsed #camera-info-title {
+            margin-bottom: 0;
+            border-bottom: none;
         }
 
         #camera-info-content {
             line-height: 1.6;
+            transition: opacity 0.2s;
         }
 
         #camera-info-content .info-row {
@@ -840,7 +870,10 @@
         <div id="canvas-container">
                     <!-- Camera/Zoom Info Panel -->
                     <div id="camera-info">
-                        <div id="camera-info-title">Camera Info</div>
+                        <div id="camera-info-title">
+                            <span>Camera Info</span>
+                            <span id="camera-info-toggle">▼</span>
+                        </div>
                         <div id="camera-info-content">
                             <div class="info-row">
                                 <span class="info-label">Distance:</span>
@@ -4640,18 +4673,36 @@ Three.js · PapaParse · Pure JavaScript`
                                 }
                             }
                             
-                            // 카메라 타겟 이동 (3차원에서 위/아래로만 이동)
-                            // deltaX는 무시하고 deltaY만 사용하여 Y축(높이)으로만 이동
-                            let newTargetX = this.cameraTarget.x; // X축은 변경하지 않음
-                            let newTargetY = this.cameraTarget.y - smoothedDeltaY * scaledPanSpeed * 0.5; // Y축(높이)만 변경
-                            let newTargetZ = this.cameraTarget.z; // Z축은 변경하지 않음
+                            // 카메라 타겟 이동: 좌우/위아래 독립적으로 처리
+                            // 이동 방향의 주성분을 계산하여 좌우 또는 위아래만 이동
+                            const absDeltaX = Math.abs(smoothedDeltaX);
+                            const absDeltaY = Math.abs(smoothedDeltaY);
+                            
+                            // 이동 방향 결정: 더 큰 이동량을 가진 방향으로만 이동
+                            const isHorizontalMove = absDeltaX > absDeltaY;
+                            
+                            let newTargetX = this.cameraTarget.x;
+                            let newTargetY = this.cameraTarget.y;
+                            let newTargetZ = this.cameraTarget.z;
+                            
+                            if (isHorizontalMove) {
+                                // 좌우 이동: X, Z축으로만 이동 (카메라의 오른쪽 방향 사용)
+                                const panAmount = smoothedDeltaX * scaledPanSpeed * 0.5;
+                                newTargetX += right.x * panAmount;
+                                newTargetZ += right.z * panAmount;
+                                // Y축(높이)은 변경하지 않음
+                            } else {
+                                // 위아래 이동: Y축(높이)으로만 이동
+                                newTargetY -= smoothedDeltaY * scaledPanSpeed * 0.5;
+                                // X, Z축은 변경하지 않음
+                            }
                             
                             // 패닝 오프셋은 0으로 유지 (카메라 타겟만 이동)
                             let newPanX = 0;
                             let newPanY = 0;
                             let newPanZ = 0;
                             
-                            // 플레이어 경로 범위 내로 제한 (Y축만 체크)
+                            // 플레이어 경로 범위 내로 제한
                             if (this.mapBounds && this.mapBounds.pathMinZ !== undefined) {
                                 const bounds = this.mapBounds;
                                 
@@ -4661,11 +4712,22 @@ Three.js · PapaParse · Pure JavaScript`
                                     bounds.pathHeight || bounds.height || 0,
                                     bounds.pathDepth || bounds.depth || 0
                                 ) * 0.1;
+                                
+                                // Y축(높이) 경계 체크
                                 const minY = bounds.pathMinZ - margin;
                                 const maxY = bounds.pathMaxZ + margin;
-                                
-                                // Y축(높이)만 경계 체크
                                 newTargetY = Math.max(minY, Math.min(maxY, newTargetY));
+                                
+                                // X, Z축 경계 체크 (좌우 이동 시)
+                                if (isHorizontalMove) {
+                                    const minX = (bounds.pathMinX !== undefined ? bounds.pathMinX : bounds.minX) - margin;
+                                    const maxX = (bounds.pathMaxX !== undefined ? bounds.pathMaxX : bounds.maxX) + margin;
+                                    const minZ = (bounds.pathMinY !== undefined ? bounds.pathMinY : bounds.minY) - margin;
+                                    const maxZ = (bounds.pathMaxY !== undefined ? bounds.pathMaxY : bounds.maxY) + margin;
+                                    
+                                    newTargetX = Math.max(minX, Math.min(maxX, newTargetX));
+                                    newTargetZ = Math.max(minZ, Math.min(maxZ, newTargetZ));
+                                }
                             }
                             
                             // 카메라 타겟 업데이트
@@ -5197,11 +5259,17 @@ Three.js · PapaParse · Pure JavaScript`
                 const cameraInfo = document.getElementById('camera-info');
                 if (!cameraInfo) return;
                 
+                const cameraInfoTitle = document.getElementById('camera-info-title');
+                const cameraInfoToggle = document.getElementById('camera-info-toggle');
+                
                 let isDragging = false;
                 let dragStartX = 0;
                 let dragStartY = 0;
                 let startLeft = 0;
                 let startTop = 0;
+                let mouseDownX = 0;
+                let mouseDownY = 0;
+                let hasMoved = false;
                 
                 // 저장된 위치 불러오기
                 const savedPosition = localStorage.getItem('cameraInfoPosition');
@@ -5217,11 +5285,47 @@ Three.js · PapaParse · Pure JavaScript`
                     }
                 }
                 
+                // 저장된 접기/펼치기 상태 불러오기
+                const savedCollapsed = localStorage.getItem('cameraInfoCollapsed');
+                if (savedCollapsed === 'true') {
+                    cameraInfo.classList.add('collapsed');
+                    if (cameraInfoToggle) {
+                        cameraInfoToggle.textContent = '▶';
+                    }
+                }
+                
+                // 접기/펼치기 토글 기능
+                const toggleCollapse = () => {
+                    const isCollapsed = cameraInfo.classList.contains('collapsed');
+                    if (isCollapsed) {
+                        cameraInfo.classList.remove('collapsed');
+                        if (cameraInfoToggle) {
+                            cameraInfoToggle.textContent = '▼';
+                        }
+                        localStorage.setItem('cameraInfoCollapsed', 'false');
+                    } else {
+                        cameraInfo.classList.add('collapsed');
+                        if (cameraInfoToggle) {
+                            cameraInfoToggle.textContent = '▶';
+                        }
+                        localStorage.setItem('cameraInfoCollapsed', 'true');
+                    }
+                };
+                
                 cameraInfo.addEventListener('mousedown', (e) => {
+                    // 토글 아이콘을 클릭한 경우 드래그 시작하지 않음
+                    if (e.target === cameraInfoToggle || e.target.id === 'camera-info-toggle') {
+                        toggleCollapse();
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                    
                     // 제목 영역이나 빈 공간을 클릭했을 때만 드래그 시작
                     if (e.target === cameraInfo || e.target.id === 'camera-info-title' || e.target.closest('#camera-info-title')) {
-                        isDragging = true;
-                        cameraInfo.classList.add('dragging');
+                        mouseDownX = e.clientX;
+                        mouseDownY = e.clientY;
+                        hasMoved = false;
                         
                         const rect = cameraInfo.getBoundingClientRect();
                         const container = document.getElementById('canvas-container');
@@ -5242,6 +5346,23 @@ Three.js · PapaParse · Pure JavaScript`
                 });
                 
                 document.addEventListener('mousemove', (e) => {
+                    // 제목 영역에서 마우스가 움직였는지 확인
+                    if (mouseDownX !== 0 && mouseDownY !== 0) {
+                        const moveDistance = Math.sqrt(
+                            Math.pow(e.clientX - mouseDownX, 2) + 
+                            Math.pow(e.clientY - mouseDownY, 2)
+                        );
+                        
+                        // 5픽셀 이상 이동하면 드래그로 간주
+                        if (moveDistance > 5) {
+                            hasMoved = true;
+                            if (!isDragging) {
+                                isDragging = true;
+                                cameraInfo.classList.add('dragging');
+                            }
+                        }
+                    }
+                    
                     if (!isDragging) return;
                     
                     const container = document.getElementById('canvas-container');
@@ -5266,7 +5387,19 @@ Three.js · PapaParse · Pure JavaScript`
                     e.preventDefault();
                 });
                 
-                document.addEventListener('mouseup', () => {
+                document.addEventListener('mouseup', (e) => {
+                    // 제목 영역에서 클릭했고, 드래그하지 않았다면 토글
+                    if (mouseDownX !== 0 && mouseDownY !== 0 && !hasMoved) {
+                        const clickedOnTitle = e.target === cameraInfoTitle || 
+                                             e.target.closest('#camera-info-title') ||
+                                             e.target === cameraInfo ||
+                                             (cameraInfoTitle && cameraInfoTitle.contains(e.target));
+                        
+                        if (clickedOnTitle && e.target !== cameraInfoToggle && e.target.id !== 'camera-info-toggle') {
+                            toggleCollapse();
+                        }
+                    }
+                    
                     if (isDragging) {
                         isDragging = false;
                         cameraInfo.classList.remove('dragging');
@@ -5287,6 +5420,11 @@ Three.js · PapaParse · Pure JavaScript`
                             console.warn('카메라 인포 위치 저장 실패:', e);
                         }
                     }
+                    
+                    // 초기화
+                    mouseDownX = 0;
+                    mouseDownY = 0;
+                    hasMoved = false;
                 });
             }
 
@@ -5396,6 +5534,14 @@ Three.js · PapaParse · Pure JavaScript`
             }
 
             selectEvent(event) {
+                // fire 이벤트는 클릭해도 아무것도 하지 않음 (hit과 kill만 처리)
+                const eventType = event.event_type || event.event_type_lower || '';
+                const eventTypeLower = eventType.toLowerCase();
+                if (eventTypeLower === 'fire') {
+                    console.log('Fire event clicked - no action taken (only hit and kill events are clickable)');
+                    return;
+                }
+                
                 // 기존 선택 해제
                 if (this.selectedEvent) {
                     document.querySelectorAll('.event-item.selected').forEach(item => {
@@ -5438,86 +5584,68 @@ Three.js · PapaParse · Pure JavaScript`
                 // 해당 시간으로 이동
                 const targetTick = this.findTickByTime(event.game_time);
                 console.log('Target tick:', targetTick, 'for game_time:', event.game_time);
-                if (targetTick !== -1) {
-                    this.currentTick = targetTick;
-                    // playheadTime도 kill 이벤트 시간으로 설정 (재생 시 kill 순간이 보이도록)
-                    this.playheadTime = event.game_time;
-                    this.lastFrameTime = Date.now(); // 프레임 타이밍 리셋
-                    
-                    // 해당 틱의 플레이어 데이터 확인
-                    const tickData = this.data.positions[targetTick];
-                    if (tickData) {
-                        console.log('Tick data:', {
-                            tick: tickData.tick,
-                            game_time: tickData.game_time,
-                            players_count: tickData.players?.length || 0,
-                            attacker_in_players: tickData.players?.find(p => p.name === event.attacker?.name) ? 'YES' : 'NO',
-                            victim_in_players: tickData.players?.find(p => p.name === event.victim?.name) ? 'YES' : 'NO'
-                        });
-                        if (event.attacker?.name) {
-                            const attackerInTick = tickData.players?.find(p => p.name === event.attacker.name);
-                            console.log('Attacker in tick:', attackerInTick ? {
-                                name: attackerInTick.name,
-                                position: attackerInTick.position,
-                                health: attackerInTick.health
-                            } : 'NOT FOUND');
-                        }
-                        if (event.victim?.name) {
-                            const victimInTick = tickData.players?.find(p => p.name === event.victim.name);
-                            console.log('Victim in tick:', victimInTick ? {
-                                name: victimInTick.name,
-                                position: victimInTick.position,
-                                health: victimInTick.health
-                            } : 'NOT FOUND');
-                        }
-                    }
-                } else {
+                
+                // targetTick이 유효한지 확인
+                if (targetTick === -1 || targetTick < 0 || targetTick >= this.data.positions.length) {
                     console.warn('Target tick not found for game_time:', event.game_time);
+                    return; // 유효하지 않은 틱이면 종료
                 }
                 
-                // victim의 position이 null이면 해당 틱의 players에서 찾아서 보완
-                if (event.victim && event.victim.name && (!event.victim.position || event.victim.position[0] === null)) {
-                    const tickIndex = this.findTickByTime(event.game_time);
-                    if (tickIndex !== -1) {
-                        const tickData = this.data.positions[tickIndex];
-                        if (tickData && tickData.players) {
-                            const victimInTick = tickData.players.find(p => p.name === event.victim.name);
-                            if (victimInTick && victimInTick.position) {
-                                console.log('selectEvent: Victim position 보완:', {
-                                    victim_name: event.victim.name,
-                                    original_position: event.victim.position,
-                                    found_position: victimInTick.position
-                                });
-                                event.victim.position = victimInTick.position;
-                                if (!event.victim.team && victimInTick.team) {
-                                    event.victim.team = victimInTick.team;
-                                }
-                            }
+                this.currentTick = targetTick;
+                // playheadTime도 이벤트 시간으로 설정 (재생 시 해당 순간이 보이도록)
+                this.playheadTime = event.game_time;
+                this.lastFrameTime = Date.now(); // 프레임 타이밍 리셋
+                
+                // 해당 틱의 플레이어 데이터 가져오기
+                const tickData = this.data.positions[targetTick];
+                if (!tickData || !tickData.players) {
+                    console.warn('Tick data or players not found for tick:', targetTick);
+                    return;
+                }
+                
+                // 먼저 해당 틱의 players 배열에서 attacker와 victim의 위치를 찾아서 보완
+                // 이렇게 하면 모든 이벤트 타입(fire, hit, kill)에 대해 동일하게 작동
+                if (event.attacker && event.attacker.name) {
+                    const attackerInTick = tickData.players.find(p => p.name === event.attacker.name);
+                    if (attackerInTick && attackerInTick.position && attackerInTick.position[0] !== null) {
+                        // 틱 데이터에서 찾은 위치로 업데이트
+                        event.attacker.position = attackerInTick.position;
+                        if (!event.attacker.team && attackerInTick.team) {
+                            event.attacker.team = attackerInTick.team;
                         }
+                        console.log('selectEvent: Attacker position 업데이트:', {
+                            attacker_name: event.attacker.name,
+                            position: event.attacker.position
+                        });
+                    } else if (!event.attacker.position || event.attacker.position[0] === null) {
+                        console.warn('Attacker position not found in tick data:', event.attacker.name);
                     }
                 }
                 
-                // attacker의 position이 null이면 해당 틱의 players에서 찾아서 보완
-                if (event.attacker && event.attacker.name && (!event.attacker.position || event.attacker.position[0] === null)) {
-                    const tickIndex = this.findTickByTime(event.game_time);
-                    if (tickIndex !== -1) {
-                        const tickData = this.data.positions[tickIndex];
-                        if (tickData && tickData.players) {
-                            const attackerInTick = tickData.players.find(p => p.name === event.attacker.name);
-                            if (attackerInTick && attackerInTick.position) {
-                                console.log('selectEvent: Attacker position 보완:', {
-                                    attacker_name: event.attacker.name,
-                                    original_position: event.attacker.position,
-                                    found_position: attackerInTick.position
-                                });
-                                event.attacker.position = attackerInTick.position;
-                                if (!event.attacker.team && attackerInTick.team) {
-                                    event.attacker.team = attackerInTick.team;
-                                }
-                            }
+                if (event.victim && event.victim.name) {
+                    const victimInTick = tickData.players.find(p => p.name === event.victim.name);
+                    if (victimInTick && victimInTick.position && victimInTick.position[0] !== null) {
+                        // 틱 데이터에서 찾은 위치로 업데이트
+                        event.victim.position = victimInTick.position;
+                        if (!event.victim.team && victimInTick.team) {
+                            event.victim.team = victimInTick.team;
                         }
+                        console.log('selectEvent: Victim position 업데이트:', {
+                            victim_name: event.victim.name,
+                            position: event.victim.position
+                        });
+                    } else if (!event.victim.position || event.victim.position[0] === null) {
+                        console.warn('Victim position not found in tick data:', event.victim.name);
                     }
                 }
+                
+                console.log('Tick data:', {
+                    tick: tickData.tick,
+                    game_time: tickData.game_time,
+                    players_count: tickData.players?.length || 0,
+                    attacker_found: event.attacker?.name && tickData.players?.find(p => p.name === event.attacker.name) ? 'YES' : 'NO',
+                    victim_found: event.victim?.name && tickData.players?.find(p => p.name === event.victim.name) ? 'YES' : 'NO'
+                });
                 
                 // 두 플레이어의 중앙 좌표를 시뮬레이션 중앙에 배치
                 // mapBounds가 없어도 카메라 위치는 설정 (검은 화면 방지)
@@ -5529,46 +5657,108 @@ Three.js · PapaParse · Pure JavaScript`
                     mapBounds: this.mapBounds ? 'EXISTS' : 'NULL'
                 });
                 
-                if (event.attacker && event.attacker.position && event.attacker.position[0] !== null) {
+                // attacker 또는 victim의 위치를 사용하여 카메라 설정
+                // fire 이벤트의 경우 attacker만 있을 수 있음 (victim 없음)
+                // attacker가 있으면 attacker를 우선, 없으면 victim 사용
+                let primaryPlayer = null;
+                let secondaryPlayer = null;
+                
+                // attacker가 있고 위치가 있으면 사용
+                if (event.attacker && event.attacker.name && event.attacker.position && event.attacker.position[0] !== null) {
+                    primaryPlayer = event.attacker;
+                    // victim이 있고 위치가 있으면 secondary로 설정 (fire 이벤트는 victim이 없을 수 있음)
+                    if (event.victim && event.victim.name && event.victim.position && event.victim.position[0] !== null) {
+                        secondaryPlayer = event.victim;
+                    }
+                } 
+                // attacker가 없거나 위치가 없으면 victim 사용
+                else if (event.victim && event.victim.name && event.victim.position && event.victim.position[0] !== null) {
+                    primaryPlayer = event.victim;
+                    secondaryPlayer = null;
+                } 
+                // attacker와 victim 모두 위치가 없으면 해당 틱의 첫 번째 플레이어 사용
+                else {
+                    if (tickData.players && tickData.players.length > 0) {
+                        // attacker 이름이 있으면 해당 플레이어를 우선 찾기
+                        if (event.attacker && event.attacker.name) {
+                            const attackerInTick = tickData.players.find(p => p.name === event.attacker.name && p.position && p.position[0] !== null);
+                            if (attackerInTick) {
+                                primaryPlayer = {
+                                    name: attackerInTick.name,
+                                    position: attackerInTick.position,
+                                    team: attackerInTick.team
+                                };
+                                console.log('Using attacker from tick as fallback:', primaryPlayer.name);
+                            }
+                        }
+                        
+                        // attacker를 찾지 못했으면 첫 번째 플레이어 사용
+                        if (!primaryPlayer) {
+                            const firstPlayer = tickData.players.find(p => p.position && p.position[0] !== null);
+                            if (firstPlayer) {
+                                primaryPlayer = {
+                                    name: firstPlayer.name,
+                                    position: firstPlayer.position,
+                                    team: firstPlayer.team
+                                };
+                                console.log('Using first player from tick as fallback:', primaryPlayer.name);
+                            }
+                        }
+                    }
+                }
+                
+                console.log('Primary/Secondary player selection:', {
+                    primary: primaryPlayer ? primaryPlayer.name : 'NONE',
+                    secondary: secondaryPlayer ? secondaryPlayer.name : 'NONE',
+                    event_type: event.event_type,
+                    attacker_name: event.attacker?.name,
+                    victim_name: event.victim?.name
+                });
+                
+                if (primaryPlayer && primaryPlayer.position && primaryPlayer.position[0] !== null) {
                     // 스케일링된 좌표 사용
-                    const attackerPos = {
-                        x: (event.attacker.position[0] - this.coordinateOffset.x) * this.coordinateScale,
-                        y: (event.attacker.position[2] - this.coordinateOffset.z) * this.coordinateScale,
-                        z: (event.attacker.position[1] - this.coordinateOffset.y) * this.coordinateScale
+                    const primaryPos = {
+                        x: (primaryPlayer.position[0] - this.coordinateOffset.x) * this.coordinateScale,
+                        y: (primaryPlayer.position[2] - this.coordinateOffset.z) * this.coordinateScale,
+                        z: (primaryPlayer.position[1] - this.coordinateOffset.y) * this.coordinateScale
                     };
                     
-                    let centerPos = attackerPos;
+                    let centerPos = primaryPos;
                     
-                    // 피해자 위치가 있으면 중앙 좌표 계산
-                    if (event.victim && event.victim.position && event.victim.position[0] !== null) {
-                        const victimPos = {
-                            x: (event.victim.position[0] - this.coordinateOffset.x) * this.coordinateScale,
-                            y: (event.victim.position[2] - this.coordinateOffset.z) * this.coordinateScale,
-                            z: (event.victim.position[1] - this.coordinateOffset.y) * this.coordinateScale
+                    // secondary player (victim 또는 attacker) 위치가 있으면 중앙 좌표 계산
+                    if (secondaryPlayer && secondaryPlayer.position && secondaryPlayer.position[0] !== null) {
+                        const secondaryPos = {
+                            x: (secondaryPlayer.position[0] - this.coordinateOffset.x) * this.coordinateScale,
+                            y: (secondaryPlayer.position[2] - this.coordinateOffset.z) * this.coordinateScale,
+                            z: (secondaryPlayer.position[1] - this.coordinateOffset.y) * this.coordinateScale
                         };
                         
                         // 두 플레이어의 중앙 좌표 계산
                         centerPos = {
-                            x: (attackerPos.x + victimPos.x) / 2,
-                            y: (attackerPos.y + victimPos.y) / 2,
-                            z: (attackerPos.z + victimPos.z) / 2
+                            x: (primaryPos.x + secondaryPos.x) / 2,
+                            y: (primaryPos.y + secondaryPos.y) / 2,
+                            z: (primaryPos.z + secondaryPos.z) / 2
                         };
                         
                         // 거리 계산하여 적절한 카메라 거리 설정
                         const distance = Math.sqrt(
-                            Math.pow(attackerPos.x - victimPos.x, 2) +
-                            Math.pow(attackerPos.y - victimPos.y, 2) +
-                            Math.pow(attackerPos.z - victimPos.z, 2)
+                            Math.pow(primaryPos.x - secondaryPos.x, 2) +
+                            Math.pow(primaryPos.y - secondaryPos.y, 2) +
+                            Math.pow(primaryPos.z - secondaryPos.z, 2)
                         );
                         
                         // 포커스 모드: 더 확대되어 보이도록 카메라 거리 조정 (중앙 화면에 들어오게)
                         // 거리에 따라 카메라 거리 조정 (더 가깝게, 최소 300, 최대 1200)
                         this.cameraDistance = Math.max(300, Math.min(1200, distance * 0.8));
                     } else {
-                        // 피해자 위치가 없으면 기본 거리 사용 (포커스 모드에서는 더 가깝게)
-                    const bounds = this.mapBounds;
-                    const maxDim = Math.max(bounds.width, bounds.height, bounds.depth);
-                        this.cameraDistance = maxDim * 0.4; // 포커스 모드에서는 더 가깝게 (0.8 -> 0.4)
+                        // secondary player 위치가 없으면 기본 거리 사용 (포커스 모드에서는 더 가깝게)
+                        const bounds = this.mapBounds;
+                        if (bounds) {
+                            const maxDim = Math.max(bounds.width, bounds.height, bounds.depth);
+                            this.cameraDistance = maxDim * 0.4; // 포커스 모드에서는 더 가깝게
+                        } else {
+                            this.cameraDistance = 800; // 기본 거리
+                        }
                     }
                     
                     // 카메라 위치를 중앙 좌표 중심으로 배치
@@ -5588,9 +5778,42 @@ Three.js · PapaParse · Pure JavaScript`
                     // 카메라 업데이트 (렌더링 전에 먼저 업데이트하여 검은 화면 방지)
                     console.log('Camera target set to:', this.cameraTarget, 'distance:', this.cameraDistance);
                     this.updateCameraToTarget();
+                    
+                    // 카메라가 제대로 설정되었는지 확인하고 렌더링
+                    // 카메라 타겟이 설정되었으면 렌더링 수행
+                    if (this.cameraTarget) {
+                        // 렌더링 수행 (카메라 업데이트 후)
+                        if (targetTick !== -1 && targetTick >= 0 && targetTick < this.data.positions.length) {
+                            // 현재 틱을 확실히 설정
+                            this.currentTick = targetTick;
+                            
+                            // playheadTime도 이벤트 시간으로 설정
+                            this.playheadTime = event.game_time;
+                            this.lastFrameTime = Date.now();
+                            
+                            // 즉시 렌더링 수행 (보간 없이 해당 틱으로 바로 이동)
+                            this.renderTick(this.currentTick, 0);
+                            this.updateTimeDisplay();
+                            
+                            // 이벤트 렌더링 (hit과 kill 이벤트 시각화)
+                            const eventGameTime = event.game_time;
+                            this.renderEvents(eventGameTime);
+                            
+                            console.log('selectEvent: 렌더링 완료', {
+                                event_type: event.event_type,
+                                targetTick: targetTick,
+                                currentTick: this.currentTick,
+                                cameraTarget: this.cameraTarget
+                            });
+                        } else {
+                            console.warn('selectEvent: Invalid targetTick:', targetTick, 'positions length:', this.data.positions.length);
+                        }
+                    } else {
+                        console.error('Camera target not set, cannot render');
+                    }
                 } else {
-                    console.warn('Attacker position is null, using fallback camera');
-                    // mapBounds가 없거나 attacker 위치가 없을 때 기본 카메라 설정
+                    console.warn('Primary player position is null, using fallback camera');
+                    // mapBounds가 없거나 플레이어 위치가 없을 때 기본 카메라 설정
                     if (this.mapBounds) {
                         const bounds = this.mapBounds;
                         this.cameraTarget = {
@@ -5600,36 +5823,29 @@ Three.js · PapaParse · Pure JavaScript`
                         };
                         const maxDim = Math.max(bounds.width || 1000, bounds.height || 1000, bounds.depth || 1000);
                         this.cameraDistance = maxDim * 0.4;
-                        console.log('Fallback camera (mapBounds):', this.cameraTarget, 'distance:', this.cameraDistance);
-                        this.updateCameraToTarget();
-                    } else if (event.attacker.position[0] !== null) {
-                        // mapBounds가 없어도 attacker 위치를 사용하여 카메라 설정
-                        const attackerPos = {
-                            x: (event.attacker.position[0] - this.coordinateOffset.x) * this.coordinateScale,
-                            y: (event.attacker.position[2] - this.coordinateOffset.z) * this.coordinateScale,
-                            z: (event.attacker.position[1] - this.coordinateOffset.y) * this.coordinateScale
-                        };
-                        this.cameraTarget = attackerPos;
-                        this.cameraDistance = 800; // 기본 거리
                         this.cameraRotationX = 0.4;
                         this.cameraRotationY = Math.PI / 4;
-                        console.log('Fallback camera (attacker pos):', this.cameraTarget, 'distance:', this.cameraDistance);
+                        console.log('Fallback camera (mapBounds):', this.cameraTarget, 'distance:', this.cameraDistance);
                         this.updateCameraToTarget();
                     } else {
-                        console.error('Cannot set camera: attacker position is null and no mapBounds');
+                        // mapBounds가 없어도 기본 카메라 설정
+                        console.warn('No mapBounds, using default camera at origin');
+                        this.cameraTarget = { x: 0, y: 0, z: 0 };
+                        this.cameraDistance = 1000;
+                        this.cameraRotationX = 0.4;
+                        this.cameraRotationY = Math.PI / 4;
+                        this.updateCameraToTarget();
+                    }
+                    
+                    // fallback 카메라 설정 후에도 렌더링 시도
+                    if (targetTick !== -1 && targetTick >= 0 && targetTick < this.data.positions.length) {
+                        this.currentTick = targetTick;
+                        this.renderTick(this.currentTick, 0);
+                        this.updateTimeDisplay();
+                        const eventGameTime = event.game_time;
+                        this.renderEvents(eventGameTime);
                     }
                 }
-                
-                // 렌더링 수행 (카메라 업데이트 후)
-                if (targetTick !== -1) {
-                    this.renderTick(this.currentTick);
-                    this.updateTimeDisplay();
-                }
-                
-                // 이벤트 렌더링 (kill 이벤트 시각화)
-                // kill 이벤트의 정확한 game_time을 사용하여 이벤트가 확실히 표시되도록 함
-                const eventGameTime = event.game_time;
-                this.renderEvents(eventGameTime);
                 
                 // 이벤트 로그 업데이트
                 this.updateEventLog();
@@ -5643,9 +5859,33 @@ Three.js · PapaParse · Pure JavaScript`
             }
             
             updateCameraToTarget() {
-                if (!this.cameraTarget || !this.mapBounds) return;
+                if (!this.cameraTarget) {
+                    console.warn('updateCameraToTarget: cameraTarget is null');
+                    return;
+                }
                 
+                // mapBounds가 없어도 카메라 설정 가능하도록 수정
                 const target = this.cameraTarget;
+                
+                // cameraDistance가 설정되지 않았으면 기본값 사용
+                if (!this.cameraDistance || this.cameraDistance <= 0) {
+                    if (this.mapBounds) {
+                        const bounds = this.mapBounds;
+                        const maxDim = Math.max(bounds.width || 1000, bounds.height || 1000, bounds.depth || 1000);
+                        this.cameraDistance = maxDim * 0.4;
+                    } else {
+                        this.cameraDistance = 800; // 기본 거리
+                    }
+                }
+                
+                // cameraRotation이 설정되지 않았으면 기본값 사용
+                if (this.cameraRotationX === undefined || this.cameraRotationX === null) {
+                    this.cameraRotationX = 0.4;
+                }
+                if (this.cameraRotationY === undefined || this.cameraRotationY === null) {
+                    this.cameraRotationY = Math.PI / 4;
+                }
+                
                 const x = target.x + this.cameraDistance * Math.sin(this.cameraRotationY) * Math.cos(this.cameraRotationX);
                 const y = target.y + this.cameraDistance * Math.sin(this.cameraRotationX);
                 const z = target.z + this.cameraDistance * Math.cos(this.cameraRotationY) * Math.cos(this.cameraRotationX);
@@ -5661,6 +5901,13 @@ Three.js · PapaParse · Pure JavaScript`
                     target.y + (this.panOffset ? this.panOffset.y : 0),
                     target.z + (this.panOffset ? this.panOffset.z : 0)
                 );
+                
+                console.log('updateCameraToTarget completed:', {
+                    target: target,
+                    cameraPosition: this.camera.position,
+                    cameraDistance: this.cameraDistance,
+                    mapBounds: this.mapBounds ? 'EXISTS' : 'NULL'
+                });
             }
 
             findTickByTime(targetTime) {
@@ -5701,18 +5948,41 @@ Three.js · PapaParse · Pure JavaScript`
 
             exitFocusMode() {
                 this.focusMode = false;
+                this.focusTickRange = null; // focusTickRange도 해제
                 this.focusTimeRange = null;
                 this.selectedEvent = null;
-                this.cameraTarget = null; // 타겟 해제
+                // cameraTarget은 유지 (시점을 그대로 유지하기 위해)
+                // this.cameraTarget = null; // 제거 - 시점 유지
                 
-                // 전체 캐릭터가 다 보이도록 렌더링 다시 수행
+                // 현재 시점을 유지한 채 렌더링
                 if (this.data && this.data.positions && this.currentTick !== undefined) {
-                    this.renderTick(this.currentTick);
+                    // 현재 틱 유지하면서 렌더링
+                    this.renderTick(this.currentTick, 0);
+                    this.updateTimeDisplay();
                 }
                 
-                this.updateCamera();
+                // 카메라 업데이트 (현재 시점 유지)
+                // cameraTarget이 있으면 그대로 유지, 없으면 기본 카메라로
+                if (this.cameraTarget) {
+                    // 현재 카메라 시점 유지
+                    this.updateCameraToTarget();
+                } else {
+                    // cameraTarget이 없으면 기본 카메라로
+                    this.updateCamera();
+                }
+                
                 this.showFocusModeIndicator();
                 this.updateEventLog();
+                
+                // 현재 시점에서 자연스럽게 재생 시작
+                // 재생이 멈춰있으면 자동으로 재생 시작
+                if (!this.isPlaying) {
+                    this.isPlaying = true;
+                    document.getElementById('play-btn').textContent = '⏸';
+                    // 재생 시간 초기화하여 자연스럽게 시작
+                    this.lastFrameTime = Date.now();
+                    this.playheadTime = this.data.positions[this.currentTick]?.game_time || 0;
+                }
             }
 
             renderTick(tickIndex, interpolation = 0) {

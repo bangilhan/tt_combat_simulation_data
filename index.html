@@ -3625,10 +3625,126 @@ Three.js · PapaParse · Pure JavaScript`
                 }
             }
 
+            // Mock 데이터 생성 함수
+            generateMockData(playerName, stats) {
+                // 일관된 Mock 데이터를 위해 playerName을 시드로 사용
+                let seed = 0;
+                for (let i = 0; i < playerName.length; i++) {
+                    seed += playerName.charCodeAt(i);
+                }
+                const rng = (max) => {
+                    seed = (seed * 9301 + 49297) % 233280;
+                    return (seed / 233280) * max;
+                };
+                
+                const characterMap = {
+                    1: '캐시', 2: '버티', 3: '레이븐', 4: '커티스', 5: '에두',
+                    6: '조란', 7: '로쿠로', 8: '안드레이', 9: '아서', 10: '유나',
+                    11: '미사용', 12: '에포크', 13: '앨리스', 14: '자자', 15: '럼&레이진'
+                };
+                
+                const osList = ['Unknown', 'Windows', 'MacOS', 'Linux', 'PS5', 'XSX'];
+                const inputDeviceList = ['키보드/마우스', '콘솔'];
+                const gameTypeList = ['AI매치', '일반 매치', '이벤트 매치', '커스텀 매치'];
+                const teamTypeList = ['솔로', '듀오', '트리오', '스쿼드'];
+                const reportReasons = ['자리비움/탈주', '부적절한 닉네임', '악의적인 플레이', '불법 프로그램 사용', '기타'];
+                
+                return {
+                    // 플레이어 정보
+                    character: characterMap[Math.floor(rng(15)) + 1],
+                    os: osList[Math.floor(rng(osList.length))],
+                    inputDevice: inputDeviceList[Math.floor(rng(inputDeviceList.length))],
+                    itemPurchases: [
+                        { item: '회복 아이템', time: '00:15', cost: 100 },
+                        { item: '공격력 증가', time: '02:30', cost: 250 }
+                    ],
+                    skillEnhancements: [
+                        { skill: '스킬 1', level: Math.floor(rng(5)) + 1 },
+                        { skill: '스킬 2', level: Math.floor(rng(5)) + 1 },
+                        { skill: '스킬 3', level: Math.floor(rng(5)) + 1 }
+                    ],
+                    
+                    // 매치 정보
+                    gameType: gameTypeList[Math.floor(rng(gameTypeList.length))],
+                    teamType: teamTypeList[Math.floor(rng(teamTypeList.length))],
+                    
+                    // 교전 정보
+                    rank: Math.floor(rng(10)) + 1,
+                    totalDamage: Math.floor(rng(5000)) + 1000,
+                    accuracy: (rng(30) + 20).toFixed(1), // 20-50%
+                    
+                    // 탐지 내역
+                    eacDetection: {
+                        detected: rng(1) > 0.7,
+                        patterns: {
+                            aimbotLSTM: rng(1) > 0.8,
+                            highCritRate: rng(1) > 0.85,
+                            highHitRate: rng(1) > 0.85,
+                            massiveReports: Math.floor(rng(50)),
+                            recursiveMassiveReports: rng(1) > 0.7,
+                            multiAccount: rng(1) > 0.9,
+                            hardwareBan: rng(1) > 0.95,
+                            dma: rng(1) > 0.9
+                        },
+                        details: rng(1) > 0.7 ? '비정상적인 에임 패턴 탐지' : null
+                    },
+                    // 60587 플레이어 특별 처리
+                    isPlayer60587: playerName === '60587' || playerName.includes('60587'),
+                    ncguardDetection: {
+                        detected: rng(1) > 0.8,
+                        details: rng(1) > 0.8 ? 'NCGuard 패턴 탐지됨' : null
+                    },
+                    internalAimbotDetection: {
+                        detected: rng(1) > 0.75,
+                        details: rng(1) > 0.75 ? '사내 에임봇 탐지 모델에서 이상 패턴 발견' : null
+                    },
+                    ruleBasedDetection: {
+                        detected: rng(1) > 0.85,
+                        patterns: {
+                            respawnHack: rng(1) > 0.9,
+                            timeEnergyHack: rng(1) > 0.9,
+                            cooldownIgnoreHack: rng(1) > 0.9,
+                            rangeHack: rng(1) > 0.9,
+                            movementHack: rng(1) > 0.9,
+                            installHack: rng(1) > 0.9
+                        },
+                        details: rng(1) > 0.85 ? '룰기반 패턴 위반 탐지' : null
+                    },
+                    userReports: (() => {
+                        const hasReports = rng(1) > 0.6;
+                        return {
+                            detected: hasReports,
+                            reports: hasReports ? (() => {
+                                const report1Index = Math.floor(rng(reportReasons.length));
+                                const report2Index = Math.floor(rng(reportReasons.length));
+                                return [
+                                    { 
+                                        reporter: 'Player_' + Math.floor(rng(100)), 
+                                        reason: reportReasons[report1Index], 
+                                        reasonIndex: report1Index + 1, 
+                                        time: '01:23', 
+                                        date: '2024-01-15' 
+                                    },
+                                    { 
+                                        reporter: 'Player_' + Math.floor(rng(100)), 
+                                        reason: reportReasons[report2Index], 
+                                        reasonIndex: report2Index + 1, 
+                                        time: '03:45', 
+                                        date: '2024-01-15' 
+                                    }
+                                ];
+                            })() : []
+                        };
+                    })()
+                };
+            }
+            
             generateReport(playerName) {
                 if (!this.data || !playerName) return;
                 
                 const stats = this.data.metadata.playerStats[playerName] || { kills: 0, deaths: 0, team: '' };
+                const mockData = this.generateMockData(playerName, stats);
+                
                 // 플레이어가 킬한 이벤트만 필터링 (중복 제거)
                 let playerKills = this.data.events.filter(e => 
                     e.attacker && e.attacker.name === playerName &&
@@ -3647,10 +3763,39 @@ Three.js · PapaParse · Pure JavaScript`
                 
                 console.log('Generate Report - 플레이어 킬 수 (중복 제거 후):', playerKills.length);
                 
+                // 몬스터 킬 제외 (피해자가 없는 경우)
+                const playerKillsExcludingMonsters = playerKills.filter(e => 
+                    e.victim && e.victim.name && e.victim.name.trim() !== ''
+                );
+                
+                // 부정행위 의심 정황 판단
+                const hasCheatingSuspicion = 
+                    mockData.eacDetection.detected ||
+                    mockData.ncguardDetection.detected ||
+                    mockData.internalAimbotDetection.detected ||
+                    mockData.ruleBasedDetection.detected;
+                
+                // 검출 내역 요약
+                const detectionSummary = [];
+                if (mockData.eacDetection.detected) {
+                    const eacCount = Object.values(mockData.eacDetection.patterns).filter(v => v === true || (typeof v === 'number' && v > 0)).length;
+                    if (eacCount > 0) detectionSummary.push(`EAC 패턴 검출 (${eacCount}건)`);
+                }
+                if (mockData.ncguardDetection.detected) {
+                    detectionSummary.push('NCGuard 검출 (1건)');
+                }
+                if (mockData.internalAimbotDetection.detected) {
+                    detectionSummary.push('사내 에임봇 탐지 패턴 검출 (1건)');
+                }
+                if (mockData.ruleBasedDetection.detected) {
+                    const ruleCount = Object.values(mockData.ruleBasedDetection.patterns).filter(v => v === true).length;
+                    if (ruleCount > 0) detectionSummary.push(`룰기반 패턴 검출 (${ruleCount}건)`);
+                }
+                
                 // 각 킬 이벤트별로 Aim Trace 생성 (±30틱 범위)
                 const killTraceImages = [];
                 
-                playerKills.forEach((killEvent, killIdx) => {
+                playerKillsExcludingMonsters.forEach((killEvent, killIdx) => {
                     // 킬 이벤트의 틱 인덱스 찾기
                     const killTickIdx = this.data.positions.findIndex(p => p.tick === killEvent.tick);
                     if (killTickIdx === -1) return;
@@ -3807,12 +3952,197 @@ Three.js · PapaParse · Pure JavaScript`
                     killCtx.fillText(`Time: ${timeStr} | Tick: ${killEvent.tick}`, pad, 45);
                     killCtx.fillText(`Yaw: [${xMin.toFixed(1)} ~ ${xMax.toFixed(1)}] Pitch: [${yMin.toFixed(1)} ~ ${yMax.toFixed(1)}]`, pad, H - 15);
                     
+                    // 이동 변화량 계산
+                    const movementChanges = [];
+                    for (let i = 1; i < uniqueKillAimData.length; i++) {
+                        const prev = uniqueKillAimData[i - 1];
+                        const curr = uniqueKillAimData[i];
+                        const yawDiff = Math.abs(curr.yaw - prev.yaw);
+                        const pitchDiff = Math.abs(curr.pitch - prev.pitch);
+                        const totalChange = Math.sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff);
+                        movementChanges.push(totalChange);
+                    }
+                    
+                    // 비정상 에임 이동 간 차이 계산 (연속된 이동 간의 차이)
+                    const abnormalDifferences = [];
+                    for (let i = 1; i < movementChanges.length; i++) {
+                        const diff = Math.abs(movementChanges[i] - movementChanges[i - 1]);
+                        abnormalDifferences.push(diff);
+                    }
+                    
                     killTraceImages.push({
                         image: killTraceCanvas.toDataURL('image/png'),
                         killNum: killIdx + 1,
                         victim: killEvent.victim ? killEvent.victim.name : 'Unknown',
-                        time: timeStr
+                        time: timeStr,
+                        movementChanges: movementChanges,
+                        abnormalDifferences: abnormalDifferences
                     });
+                });
+                
+                // 정상 유저의 Per-Step Distances 생성 (Mock 데이터)
+                const generateNormalUserPerStepDistances = (numSteps) => {
+                    const distances = [];
+                    for (let i = 0; i < numSteps; i++) {
+                        // 정상 유저는 대부분 낮은 값 (0.0~0.2), 가끔 작은 피크
+                        if (Math.random() > 0.9) {
+                            // 가끔 작은 피크
+                            distances.push(Math.random() * 0.2 + 0.1);
+                        } else {
+                            // 대부분 낮은 값
+                            distances.push(Math.random() * 0.15);
+                        }
+                    }
+                    return distances;
+                };
+                
+                // Per-Step Distances 시계열 그래프 생성 함수 (킬 궤적과 동일한 크기)
+                const generatePerStepDistanceChart = (playerDistances, normalUserDistances, width = 800, height = 600) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 배경
+                    ctx.fillStyle = '#1a1f2e';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    const pad = 60;
+                    const chartWidth = width - 2 * pad;
+                    const chartHeight = height - 2 * pad;
+                    
+                    // 데이터 범위 계산
+                    const allDistances = [...playerDistances, ...normalUserDistances];
+                    const maxDistance = Math.max(...allDistances, 1.6);
+                    const minDistance = 0;
+                    const maxStep = Math.max(playerDistances.length, normalUserDistances.length) - 1;
+                    
+                    // 스케일 함수
+                    const xScale = (step) => pad + (step / maxStep) * chartWidth;
+                    const yScale = (distance) => pad + chartHeight - (distance / maxDistance) * chartHeight;
+                    
+                    // 그리드
+                    ctx.strokeStyle = '#2a2f3e';
+                    ctx.lineWidth = 1;
+                    // 수평선 (Y축)
+                    for (let i = 0; i <= 5; i++) {
+                        const y = pad + (chartHeight / 5) * i;
+                        ctx.beginPath();
+                        ctx.moveTo(pad, y);
+                        ctx.lineTo(width - pad, y);
+                        ctx.stroke();
+                    }
+                    // 수직선 (X축)
+                    for (let i = 0; i <= 4; i++) {
+                        const x = pad + (chartWidth / 4) * i;
+                        ctx.beginPath();
+                        ctx.moveTo(x, pad);
+                        ctx.lineTo(x, height - pad);
+                        ctx.stroke();
+                    }
+                    
+                    // 정상 유저 라인 (파란색)
+                    if (normalUserDistances.length > 0) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#4a90e2';
+                        ctx.lineWidth = 2;
+                        ctx.moveTo(xScale(0), yScale(normalUserDistances[0]));
+                        for (let i = 1; i < normalUserDistances.length; i++) {
+                            ctx.lineTo(xScale(i), yScale(normalUserDistances[i]));
+                        }
+                        ctx.stroke();
+                        
+                        // 정상 유저 포인트
+                        normalUserDistances.forEach((dist, i) => {
+                            ctx.fillStyle = '#4a90e2';
+                            ctx.beginPath();
+                            ctx.arc(xScale(i), yScale(dist), 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+                    
+                    // 에임봇 궤적 라인 (빨간색)
+                    if (playerDistances.length > 0) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#ff6b6b';
+                        ctx.lineWidth = 2;
+                        ctx.moveTo(xScale(0), yScale(playerDistances[0]));
+                        for (let i = 1; i < playerDistances.length; i++) {
+                            ctx.lineTo(xScale(i), yScale(playerDistances[i]));
+                        }
+                        ctx.stroke();
+                        
+                        // 에임봇 궤적 포인트
+                        playerDistances.forEach((dist, i) => {
+                            ctx.fillStyle = '#ff6b6b';
+                            ctx.beginPath();
+                            ctx.arc(xScale(i), yScale(dist), 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+                    
+                    // 축 레이블
+                    ctx.fillStyle = '#8a8fa5';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    // X축 레이블
+                    for (let i = 0; i <= 4; i++) {
+                        const step = Math.floor((maxStep / 4) * i);
+                        ctx.fillText(step.toString(), pad + (chartWidth / 4) * i, height - pad + 20);
+                    }
+                    ctx.textAlign = 'right';
+                    // Y축 레이블
+                    for (let i = 0; i <= 5; i++) {
+                        const value = (maxDistance / 5) * (5 - i);
+                        ctx.fillText(value.toFixed(2), pad - 10, pad + (chartHeight / 5) * i + 4);
+                    }
+                    
+                    // 축 제목
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Sequence Step (Tick)', width / 2, height - pad + 40);
+                    ctx.save();
+                    ctx.translate(20, height / 2);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText('Movement Distance', 0, 0);
+                    ctx.restore();
+                    
+                    // 제목
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('Overlay Per-Step Distances', pad, 30);
+                    
+                    // 범례
+                    ctx.font = '12px Arial';
+                    ctx.fillStyle = '#4a90e2';
+                    ctx.fillText('Non-Cheater', width - pad - 150, 30);
+                    ctx.fillStyle = '#ff6b6b';
+                    ctx.fillText('Cheater', width - pad - 50, 30);
+                    
+                    return canvas.toDataURL('image/png');
+                };
+                
+                // 각 킬 궤적에 Per-Step Distances 차트 추가
+                killTraceImages.forEach(trace => {
+                    // 해당 킬의 이동 변화량을 Per-Step Distances로 사용
+                    let playerDistances = trace.movementChanges || [];
+                    
+                    // 에임봇 궤적에 일부 구간에서 급격한 스파이크 추가 (비정상 패턴 시뮬레이션)
+                    if (playerDistances.length > 0) {
+                        playerDistances = [...playerDistances];
+                        // 중간 구간에 급격한 스파이크 추가
+                        const spikeIndex = Math.floor(playerDistances.length * 0.4);
+                        if (spikeIndex < playerDistances.length) {
+                            // 기존 값에 큰 스파이크 추가 (1.0~1.6 범위)
+                            playerDistances[spikeIndex] = Math.random() * 0.6 + 1.0;
+                        }
+                    }
+                    
+                    // 정상 유저 데이터 생성 (동일한 길이)
+                    const normalUserDistances = generateNormalUserPerStepDistances(Math.max(playerDistances.length, 61));
+                    trace.histogram = generatePerStepDistanceChart(playerDistances, normalUserDistances);
                 });
                 
                 // 모든 킬 트레이스를 하나의 이미지로 합치기 (세로로 배치) - 비동기 처리
@@ -3858,69 +4188,183 @@ Three.js · PapaParse · Pure JavaScript`
                 // 보고서 생성 (이미지 로딩 대기)
                 generateCombinedImage().then(combinedAimTraceImage => {
                 
+                    // 생존시간 계산
+                    const survivalTime = this.data.metadata.time_range.max - this.data.metadata.time_range.min;
+                    
+                    // 매치 정보
+                    const matchId = this.data.metadata.matchInfo?.match_id || 'N/A';
+                    const mapName = this.data.metadata.mapName || 'Unknown';
+                    const gameStartTime = this.data.metadata.time_range.min;
+                    const gameEndTime = this.data.metadata.time_range.max;
+                    
+                    // Unix timestamp를 KST로 변환 (초 단위이면 * 1000, 밀리초 단위면 그대로)
+                    const formatKSTDate = (timestamp) => {
+                        // timestamp가 초 단위인지 밀리초 단위인지 확인 (일반적으로 초 단위)
+                        const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+                        const date = new Date(ms);
+                        // KST는 UTC+9
+                        const kstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+                        return kstDate.toLocaleDateString(this.language === 'ko' ? 'ko-KR' : 'en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            timeZone: 'Asia/Seoul'
+                        });
+                    };
+                    
+                    const matchStartDate = gameStartTime ? formatKSTDate(gameStartTime) : 'N/A';
+                    
                     // 언어별 텍스트 정의
                     const texts = {
                         ko: {
                             title: '플레이어 보고서',
                             generated: '생성 시간',
-                            userInfo: '유저 기본 정보',
-                            deviceType: '기기 사용 타입',
-                            kdRatio: 'K/D 비율',
-                            headshotRate: '헤드샷 비율',
-                            matchStats: '매치 통계',
-                            team: '팀',
-                            kills: '킬',
-                            deaths: '데스',
-                            totalKills: '총 킬 수',
-                            killTraces: '킬 궤적',
-                            killEvents: '킬 이벤트',
+                            conclusion: '요약',
+                            suspicionStatus: '부정사용자 의심 여부',
+                            detected: '의심됨',
+                            notDetected: '의심되지 않음',
+                            detectionStatusYes: '있음',
+                            detectionStatusNo: '없음',
+                            patternDetected: '탐지됨',
+                            patternNotDetected: '탐지되지 않음',
+                            detectionSummary: '검출 내역 요약',
+                            analysisTarget: '분석 대상 summary',
+                            playerId: '플레이어 ID',
+                            matchId: '분석 매치 ID',
+                            matchStartDate: '매치 시작 일자',
+                            playerInfo: '분석 대상 플레이어 정보',
+                            accountId: '계정 ID',
+                            username: '유저명',
+                            inputDevice: '입력 장치',
+                            character: '여행자 정보',
+                            os: 'OS 정보',
+                            weapon: '무기 정보',
+                            itemPurchases: '앱(아이템) 구매 내역',
+                            skillEnhancements: '스킬 강화 정보',
+                            matchInfo: '매치 참여 정보',
+                            matchId: '매치 ID',
+                            gameType: '게임 타입',
+                            teamType: '팀 타입',
+                            map: '맵',
+                            gameStartTime: '게임 시작 시간',
+                            gameEndTime: '게임 종료 시간',
+                            combatInfo: '교전 정보',
+                            rank: '해당 매치 내 순위',
+                            survivalTime: '생존시간(초)',
+                            kda: 'K/D/A 현황',
+                            damage: '데미지',
+                            accuracy: '명중률',
+                            killEventDetails: '킬 이벤트 상세',
+                            evidence: '상세 증거',
+                            eacDetection: 'EAC 탐지 내역',
+                            ncguardDetection: 'NCGuard 탐지 내역',
+                            internalAimbotDetection: '사내 에임봇 탐지 내역',
+                            ruleBasedDetection: '룰기반 탐지 패턴 내역',
+                            userReports: '유저 신고 내역',
+                            details: '상세 정보',
+                            yes: '예',
+                            no: '아니오',
                             time: '시간',
                             event: '이벤트',
                             victim: '피해자',
-                            weapon: '무기',
                             headshot: '헤드샷',
                             kill: '킬',
                             death: '데스',
-                            yes: '예',
-                            no: '아니오',
-                            aimAnalysis: '에임 이동 분석 - 킬 이벤트',
-                            totalKillsCount: '총 킬 수',
+                            aimAnalysis: '에임 궤적 시각화',
+                            totalKillsCount: '총 킬 이벤트 수',
                             tracesGenerated: '생성된 킬 궤적',
-                            individualTraces: '개별 킬 에임 궤적 (각 킬 주변 ±30 틱)',
+                            individualTraces: '비정상 에임 이동 TOP3',
+                            normalUserDistribution: 'Per-Step Distances',
+                            abnormalAimDeviation: '에임봇 궤적이 정상 유저보다 큰 이동 거리를 보임',
                             killNum: '킬 #',
                             noKillEvents: '에임 데이터가 있는 킬 이벤트가 없습니다',
-                            download: '다운로드'
+                            download: '다운로드',
+                            expand: '펼치기',
+                            collapse: '접기',
+                            excludingMonsters: '(몬스터는 제외)',
+                            item: '아이템',
+                            cost: '비용',
+                            skill: '스킬',
+                            level: '레벨',
+                            reporter: '신고자',
+                            reason: '사유',
+                            reasonIndex: '신고 항목',
+                            date: '날짜'
                         },
                         en: {
                             title: 'Player Report',
                             generated: 'Generated',
-                            userInfo: 'User Basic Information',
-                            deviceType: 'Device Type',
-                            kdRatio: 'K/D Ratio',
-                            headshotRate: 'Headshot Rate',
-                            matchStats: 'Match Statistics',
-                            team: 'Team',
-                            kills: 'Kills',
-                            deaths: 'Deaths',
-                            totalKills: 'Total Kills',
-                            killTraces: 'Kill Traces',
-                            killEvents: 'Kill Events',
+                            conclusion: 'Summary',
+                            suspicionStatus: 'Cheating User Suspicion Status',
+                            detected: 'Suspected',
+                            notDetected: 'Not Suspected',
+                            detectionStatusYes: 'Yes',
+                            detectionStatusNo: 'No',
+                            patternDetected: 'Detected',
+                            patternNotDetected: 'Not Detected',
+                            detectionSummary: 'Detection Summary',
+                            analysisTarget: 'Analysis Target Summary',
+                            playerId: 'Player ID',
+                            matchId: 'Analysis Match ID',
+                            matchStartDate: 'Match Start Date',
+                            playerInfo: 'Player Information',
+                            accountId: 'Account ID',
+                            username: 'Username',
+                            inputDevice: 'Input Device',
+                            character: 'Character',
+                            os: 'OS Information',
+                            weapon: 'Weapon Information',
+                            itemPurchases: 'Item Purchase History',
+                            skillEnhancements: 'Skill Enhancements',
+                            matchInfo: 'Match Participation Information',
+                            matchId: 'Match ID',
+                            gameType: 'Game Type',
+                            teamType: 'Team Type',
+                            map: 'Map',
+                            gameStartTime: 'Game Start Time',
+                            gameEndTime: 'Game End Time',
+                            combatInfo: 'Combat Information',
+                            rank: 'Rank in Match',
+                            survivalTime: 'Survival Time (seconds)',
+                            kda: 'K/D/A Status',
+                            damage: 'Damage',
+                            accuracy: 'Accuracy',
+                            killEventDetails: 'Kill Event Details',
+                            evidence: 'Detailed Evidence',
+                            eacDetection: 'EAC Detection History',
+                            ncguardDetection: 'NCGuard Detection History',
+                            internalAimbotDetection: 'Internal Aimbot Detection History',
+                            ruleBasedDetection: 'Rule-based Detection Pattern History',
+                            userReports: 'User Report History',
+                            details: 'Details',
+                            yes: 'Yes',
+                            no: 'No',
                             time: 'Time',
                             event: 'Event',
                             victim: 'Victim',
-                            weapon: 'Weapon',
                             headshot: 'Headshot',
                             kill: 'KILLED',
                             death: 'DIED',
-                            yes: 'Yes',
-                            no: 'No',
-                            aimAnalysis: 'Aim Movement Analysis - Kill Events',
-                            totalKillsCount: 'Total Kills',
+                            aimAnalysis: 'Aim Trajectory Visualization',
+                            totalKillsCount: 'Total Kill Events',
                             tracesGenerated: 'Kill Traces Generated',
-                            individualTraces: 'Individual Kill Aim Traces (±30 ticks around each kill)',
+                            individualTraces: 'Abnormal Aim Movement TOP3',
+                            normalUserDistribution: 'Per-Step Distances',
+                            abnormalAimDeviation: 'Aimbot trajectory shows larger movement distances than normal users',
                             killNum: 'Kill #',
                             noKillEvents: 'No kill events with aim data available',
-                            download: 'Download'
+                            download: 'Download',
+                            expand: 'Expand',
+                            collapse: 'Collapse',
+                            excludingMonsters: '(Excluding Monsters)',
+                            item: 'Item',
+                            cost: 'Cost',
+                            skill: 'Skill',
+                            level: 'Level',
+                            reporter: 'Reporter',
+                            reason: 'Reason',
+                            reasonIndex: 'Report Item',
+                            date: 'Date'
                         }
                     };
                     
@@ -3934,126 +4378,405 @@ Three.js · PapaParse · Pure JavaScript`
     <meta charset="UTF-8">
     <title>${t.title} - ${playerName}</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1f2e; color: #fff; }
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1f2e; color: #fff; line-height: 1.6; }
         .header { border-bottom: 2px solid #4a90e2; padding-bottom: 10px; margin-bottom: 20px; }
         .section { margin: 20px 0; padding: 15px; background: #2a2f3e; border-radius: 8px; }
+        .subsection { margin: 15px 0; padding: 10px; background: #1a1f2e; border-radius: 4px; }
         .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
         .stat-item { padding: 10px; background: #1a1f2e; border-radius: 4px; }
-        .stat-label { color: #8a8fa5; font-size: 12px; }
+        .stat-label { color: #8a8fa5; font-size: 12px; margin-bottom: 5px; }
         .stat-value { color: #fff; font-size: 18px; font-weight: bold; }
+        .suspicion-yes { color: #ff6b6b; font-size: 24px; font-weight: bold; }
+        .suspicion-no { color: #51cf66; font-size: 24px; font-weight: bold; }
+        .section-title { background: #fff; color: #1a1f2e; padding: 10px 15px; border-radius: 4px; margin-bottom: 15px; font-size: 20px; font-weight: bold; border-bottom: 3px solid #4a90e2; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #3a3f4e; }
         th { background: #1a1f2e; color: #4a90e2; }
+        .info-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #3a3f4e; }
+        .info-label { color: #8a8fa5; min-width: 180px; flex-shrink: 0; }
+        .info-value { color: #fff; font-weight: bold; margin-left: 20px; }
+        .pattern-list { list-style: none; padding: 0; }
+        .pattern-list li { padding: 5px 0; border-bottom: 1px solid #3a3f4e; }
+        .pattern-list li:last-child { border-bottom: none; }
+        .pattern-detected { color: #ff6b6b; }
+        .pattern-clean { color: #51cf66; }
     </style>
 </head>
 <body>
-    <button id="download-btn" style="position:fixed; top:16px; right:16px; background:#4a90e2; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">${t.download}</button>
+    <button id="download-btn" style="position:fixed; top:16px; right:16px; background:#4a90e2; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:1000;">${t.download}</button>
     <div class="header">
         <h1>${t.title}</h1>
-        <h2>${playerName}</h2>
-        <p>${t.generated}: ${new Date().toLocaleString(this.language === 'ko' ? 'ko-KR' : 'en-US')}</p>
+        <div style="margin: 15px 0;">
+            <div class="info-row" style="border: none; padding: 5px 0;">
+                <span class="info-label">${t.playerId}:</span>
+                <span class="info-value">${playerName}</span>
+            </div>
+            <div class="info-row" style="border: none; padding: 5px 0;">
+                <span class="info-label">${t.matchId}:</span>
+                <span class="info-value">${matchId}</span>
+            </div>
+            <div class="info-row" style="border: none; padding: 5px 0;">
+                <span class="info-label">${t.matchStartDate}:</span>
+                <span class="info-value">${matchStartDate}</span>
+            </div>
+        </div>
+        <p>${t.generated}: ${new Date().toLocaleString(this.language === 'ko' ? 'ko-KR' : 'en-US', { timeZone: 'Asia/Seoul' })}</p>
     </div>
     
+    <!-- 1. 결론 요약 -->
     <div class="section">
-        <h3>${t.userInfo}</h3>
-        <div class="stat-grid">
-            <div class="stat-item">
-                <div class="stat-label">${t.deviceType}</div>
-                <div class="stat-value">${this.language === 'ko' ? (Math.random() > 0.8 ? '패드' : '키/마') : (Math.random() > 0.8 ? 'Controller' : 'Keyboard/Mouse')}</div>
+        <h2 class="section-title">1. ${t.conclusion}</h2>
+        <div class="subsection">
+            <h3>${t.suspicionStatus}</h3>
+            <div class="stat-value ${hasCheatingSuspicion ? 'suspicion-yes' : 'suspicion-no'}">
+                ${hasCheatingSuspicion ? t.detected : t.notDetected}
             </div>
-            <div class="stat-item">
-                <div class="stat-label">${t.kdRatio}</div>
-                <div class="stat-value">${stats.deaths > 0 ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2)}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">${t.headshotRate}</div>
-                <div class="stat-value">${((playerKills.filter(e => e.headshot).length / Math.max(playerKills.length, 1)) * 100).toFixed(1)}%</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">high_crit_rate</div>
-                <div class="stat-value">${(Math.random() * 100).toFixed(1)}%</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">high_hit_rate</div>
-                <div class="stat-value">${(Math.random() * 100).toFixed(1)}%</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">massive_reports</div>
-                <div class="stat-value">${Math.floor(Math.random() * 50)}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">recursive_massive_reports</div>
-                <div class="stat-value">${Math.random() > 0.7 ? '탐지됨' : '없음'}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">DPI/감도 패턴</div>
-                <div class="stat-value">${Math.floor(Math.random() * 1600) + 400} DPI / ${(Math.random() * 3 + 0.5).toFixed(2)}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">EAC/NCGUARD 탐지</div>
-                <div class="stat-value">${Math.random() > 0.8 ? '의심 기록 있음' : '정상'}</div>
-            </div>
+        </div>
+        <div class="subsection">
+            <h3>${t.detectionSummary}</h3>
+            ${detectionSummary.length > 0 ? `
+                <ul class="pattern-list">
+                    ${detectionSummary.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+            ` : `<p>${t.notDetected}</p>`}
         </div>
     </div>
     
+    <!-- 2. 분석 대상 및 사실 요약 -->
     <div class="section">
-        <h3>${t.matchStats}</h3>
-        <div class="stat-grid">
-            <div class="stat-item">
-                <div class="stat-label">${t.team}</div>
-                <div class="stat-value">${stats.team || 'N/A'}</div>
+        <h2 class="section-title">2. ${t.analysisTarget}</h2>
+        
+        <!-- 2.1 분석 대상 플레이어 정보 -->
+        <div class="subsection">
+            <h3>2.1 ${t.playerInfo}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.accountId}:</span>
+                <span class="info-value">${playerName}</span>
             </div>
-            <div class="stat-item">
-                <div class="stat-label">${t.kills}</div>
-                <div class="stat-value">${stats.kills}</div>
+            <div class="info-row">
+                <span class="info-label">${t.username}:</span>
+                <span class="info-value">${playerName}</span>
             </div>
-            <div class="stat-item">
-                <div class="stat-label">${t.deaths}</div>
-                <div class="stat-value">${stats.deaths}</div>
+            <div class="info-row">
+                <span class="info-label">${t.inputDevice}:</span>
+                <span class="info-value">${mockData.inputDevice}</span>
             </div>
-            <div class="stat-item">
-                <div class="stat-label">${t.totalKills}</div>
-                <div class="stat-value">${playerKills.length}</div>
+            <div class="info-row">
+                <span class="info-label">${t.character}:</span>
+                <span class="info-value">${mockData.character}</span>
             </div>
-            <div class="stat-item">
-                <div class="stat-label">${t.killTraces}</div>
-                <div class="stat-value">${killTraceImages.length}</div>
+            <div class="info-row">
+                <span class="info-label">${t.os}:</span>
+                <span class="info-value">${mockData.os}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.weapon}:</span>
+                <span class="info-value">${playerKills.length > 0 && playerKills[0].weapon ? playerKills[0].weapon : 'N/A'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.itemPurchases}:</span>
+                <span class="info-value">
+                    ${mockData.itemPurchases.length > 0 ? mockData.itemPurchases.map(item => `${item.item} (${item.time}, ${item.cost})`).join(', ') : '없음'}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.skillEnhancements}:</span>
+                <span class="info-value">
+                    ${mockData.skillEnhancements.map(skill => `${skill.skill} Lv.${skill.level}`).join(', ')}
+                </span>
             </div>
         </div>
-    </div>
-    
-    <div class="section">
-        <h3>${t.killEvents}</h3>
-        <table>
-            <tr><th>${t.time}</th><th>${t.event}</th><th>${t.victim}</th><th>${t.weapon}</th><th>${t.headshot}</th></tr>
-            ${playerKills.slice(0, 20).map(e => `
-                <tr>
-                    <td>${this.formatTime(e.game_time)}</td>
-                    <td>${e.attacker.name === playerName ? t.kill : t.death}</td>
-                    <td>${e.attacker.name === playerName ? e.victim.name : e.attacker.name}</td>
-                    <td>${e.weapon || 'N/A'}</td>
-                    <td>${e.headshot ? t.yes : t.no}</td>
-                </tr>
-            `).join('')}
-        </table>
-    </div>
-    
-    <div class="section">
-        <h3>${t.aimAnalysis}</h3>
-        <p>${t.totalKillsCount}: ${playerKills.length}</p>
-        <p>${t.tracesGenerated}: ${killTraceImages.length}</p>
-        ${killTraceImages.length > 0 ? `
+        
+        <!-- 2.2 매치 참여 정보 -->
+        <div class="subsection">
+            <h3>2.2 ${t.matchInfo}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.matchId}:</span>
+                <span class="info-value">${matchId}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.gameType}:</span>
+                <span class="info-value">${mockData.gameType}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.teamType}:</span>
+                <span class="info-value">${mockData.teamType}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.map}:</span>
+                <span class="info-value">${mapName}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.gameStartTime}:</span>
+                <span class="info-value">${this.formatTime(gameStartTime)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.gameEndTime}:</span>
+                <span class="info-value">${this.formatTime(gameEndTime)}</span>
+            </div>
+        </div>
+        
+        <!-- 2.3 교전 정보 -->
+        <div class="subsection">
+            <h3>2.3 ${t.combatInfo}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.rank}:</span>
+                <span class="info-value">${mockData.rank}위</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.survivalTime}:</span>
+                <span class="info-value">${survivalTime.toFixed(1)}초</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.kda}:</span>
+                <span class="info-value">${stats.kills}킬 / ${stats.deaths}데스 / ${stats.assists || 0}어시스트</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.damage}:</span>
+                <span class="info-value">${mockData.totalDamage}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${t.accuracy}:</span>
+                <span class="info-value">${mockData.accuracy}%</span>
+            </div>
             <div style="margin-top: 15px;">
-                <h4>${t.individualTraces}</h4>
-                ${killTraceImages.map(trace => `
-                    <div style="margin-bottom: 30px; padding: 15px; background: #1a1f2e; border-radius: 4px;">
-                        <h5 style="color: #4a90e2; margin-bottom: 10px;">${t.killNum}${trace.killNum} - ${trace.victim} (${t.time}: ${trace.time})</h5>
-                        <img src="${trace.image}" style="max-width: 100%; border: 1px solid #3a3f4e; border-radius: 4px;" />
-                    </div>
-                `).join('')}
-                
+                ${(() => {
+                    const killEventId = 'kill-events-' + Math.random().toString(36).substr(2, 9);
+                    return `
+                        <button id="toggle-${killEventId}" onclick="
+                            const content = document.getElementById('${killEventId}');
+                            const btn = document.getElementById('toggle-${killEventId}');
+                            if (content.style.display === 'none') {
+                                content.style.display = 'block';
+                                btn.textContent = '${t.collapse}';
+                            } else {
+                                content.style.display = 'none';
+                                btn.textContent = '${t.expand}';
+                            }
+                        " style="background: #4a90e2; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">
+                            ${t.expand} - ${t.killEventDetails} ${t.excludingMonsters}
+                        </button>
+                        <div id="${killEventId}" style="display: none;">
+                            <table>
+                                <tr><th>${t.time}</th><th>${t.event}</th><th>${t.victim}</th><th>${t.weapon}</th><th>${t.headshot}</th></tr>
+                                ${playerKillsExcludingMonsters.slice(0, 20).map(e => `
+                                    <tr>
+                                        <td>${this.formatTime(e.game_time)}</td>
+                                        <td>${e.attacker.name === playerName ? t.kill : t.death}</td>
+                                        <td>${e.attacker.name === playerName ? (e.victim ? e.victim.name : 'Unknown') : (e.attacker ? e.attacker.name : 'Unknown')}</td>
+                                        <td>${e.weapon || 'N/A'}</td>
+                                        <td>${e.headshot ? t.yes : t.no}</td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                        </div>
+                    `;
+                })()}
             </div>
-        ` : `<p>${t.noKillEvents}</p>`}
+        </div>
+    </div>
+    
+    <!-- 3. 상세 증거 -->
+    <div class="section">
+        <h2 class="section-title">3. ${t.evidence}</h2>
+        
+        <!-- 3.1 EAC 탐지 내역 -->
+        <div class="subsection">
+            <h3>3.1 ${t.eacDetection}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.eacDetection}:</span>
+                <span class="info-value ${mockData.eacDetection.detected ? 'pattern-detected' : 'pattern-clean'}">
+                    ${mockData.eacDetection.detected ? t.detectionStatusYes : t.detectionStatusNo}
+                </span>
+            </div>
+            <div style="margin-top: 10px;">
+                <h4>EAC 탐지 패턴 리스트:</h4>
+                <ul class="pattern-list">
+                    ${(() => {
+                        // 60587 플레이어이고 "비정상적인 에임 패턴 탐지"가 있으면 aimbot LSTM만 탐지로 표시
+                        const isSpecialCase = mockData.isPlayer60587 && mockData.eacDetection.details === '비정상적인 에임 패턴 탐지';
+                        return `
+                            <li class="${isSpecialCase || mockData.eacDetection.patterns.aimbotLSTM ? 'pattern-detected' : 'pattern-clean'}">
+                                Aimbot LSTM (에임봇) - ${isSpecialCase || mockData.eacDetection.patterns.aimbotLSTM ? t.patternDetected : t.patternNotDetected}
+                            </li>
+                            <li class="pattern-clean">
+                                high_crit_rate - ${t.patternNotDetected}
+                            </li>
+                            <li class="pattern-clean">
+                                high_hit_rate - ${t.patternNotDetected}
+                            </li>
+                            <li class="pattern-clean">
+                                massive_reports - 0건
+                            </li>
+                            <li class="pattern-clean">
+                                recursive_massive_reports - ${t.patternNotDetected}
+                            </li>
+                            <li class="pattern-clean">
+                                동일 기기 다계정 유저 여부 - ${t.patternNotDetected}
+                            </li>
+                            <li class="pattern-clean">
+                                하드웨어 밴 - ${t.patternNotDetected}
+                            </li>
+                            <li class="pattern-clean">
+                                DMA (Direct Memory Access) 치트 방어 - ${t.patternNotDetected}
+                            </li>
+                        `;
+                    })()}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 3.2 NCGuard 탐지 내역 -->
+        <div class="subsection">
+            <h3>3.2 ${t.ncguardDetection}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.ncguardDetection}:</span>
+                <span class="info-value ${mockData.ncguardDetection.detected ? 'pattern-detected' : 'pattern-clean'}">
+                    ${mockData.ncguardDetection.detected ? t.detectionStatusYes : t.detectionStatusNo}
+                </span>
+            </div>
+            ${mockData.ncguardDetection.detected && mockData.ncguardDetection.details ? `
+                <div class="info-row">
+                    <span class="info-label">${t.details}:</span>
+                    <span class="info-value">${mockData.ncguardDetection.details}</span>
+                </div>
+            ` : ''}
+        </div>
+        
+        <!-- 3.3 사내 에임봇 탐지 내역 -->
+        <div class="subsection">
+            <h3>3.3 ${t.internalAimbotDetection}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.internalAimbotDetection}:</span>
+                <span class="info-value ${mockData.internalAimbotDetection.detected ? 'pattern-detected' : 'pattern-clean'}">
+                    ${mockData.internalAimbotDetection.detected ? t.detectionStatusYes : t.detectionStatusNo}
+                </span>
+            </div>
+            ${mockData.internalAimbotDetection.detected && mockData.internalAimbotDetection.details ? `
+                <div class="info-row">
+                    <span class="info-label">${t.details}:</span>
+                    <span class="info-value">${mockData.internalAimbotDetection.details}</span>
+                </div>
+            ` : ''}
+            ${mockData.internalAimbotDetection.detected && killTraceImages.length > 0 ? `
+                <div style="margin-top: 15px;">
+                    <h4>${t.aimAnalysis}</h4>
+                    <p>${t.totalKillsCount}: ${playerKillsExcludingMonsters.length}</p>
+                    ${(() => {
+                        // 랜덤으로 섞어서 top3 선택
+                        const shuffled = [...killTraceImages].sort(() => Math.random() - 0.5);
+                        const top3Traces = shuffled.slice(0, Math.min(3, shuffled.length));
+                        const traceId = 'aim-traces-' + Math.random().toString(36).substr(2, 9);
+                        return `
+                            <div style="margin-top: 15px;">
+                                <button id="toggle-${traceId}" onclick="
+                                    const content = document.getElementById('${traceId}');
+                                    const btn = document.getElementById('toggle-${traceId}');
+                                    if (content.style.display === 'none') {
+                                        content.style.display = 'block';
+                                        btn.textContent = '${t.collapse}';
+                                    } else {
+                                        content.style.display = 'none';
+                                        btn.textContent = '${t.expand}';
+                                    }
+                                " style="background: #4a90e2; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">
+                                    ${t.expand}
+                                </button>
+                                <div id="${traceId}" style="display: none;">
+                                    <h5>${t.individualTraces}</h5>
+                                    ${top3Traces.map(trace => `
+                                        <div style="margin-bottom: 30px; padding: 15px; background: #1a1f2e; border-radius: 4px;">
+                                            <h6 style="color: #4a90e2; margin-bottom: 10px;">${t.killNum}${trace.killNum} - ${trace.victim} (${t.time}: ${trace.time})</h6>
+                                            <div style="display: flex; gap: 20px; align-items: flex-start;">
+                                                <div style="flex: 1;">
+                                                    <img src="${trace.image}" style="width: 100%; max-width: 800px; height: auto; border: 1px solid #3a3f4e; border-radius: 4px;" />
+                                                </div>
+                                                <div style="flex: 1;">
+                                                    <h6 style="color: #8a8fa5; font-size: 12px; margin-bottom: 5px;">${t.normalUserDistribution}</h6>
+                                                    <img src="${trace.histogram || ''}" style="width: 100%; max-width: 800px; height: auto; border: 1px solid #3a3f4e; border-radius: 4px;" />
+                                                    <p style="color: #8a8fa5; font-size: 11px; margin-top: 5px;">${t.abnormalAimDeviation}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    })()}
+                </div>
+            ` : ''}
+        </div>
+        
+        <!-- 3.4 룰기반 탐지 패턴 내역 -->
+        <div class="subsection">
+            <h3>3.4 ${t.ruleBasedDetection}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.ruleBasedDetection}:</span>
+                <span class="info-value ${mockData.ruleBasedDetection.detected ? 'pattern-detected' : 'pattern-clean'}">
+                    ${mockData.ruleBasedDetection.detected ? t.detectionStatusYes : t.detectionStatusNo}
+                </span>
+            </div>
+            ${mockData.ruleBasedDetection.details ? `
+                <div class="info-row">
+                    <span class="info-label">${t.details}:</span>
+                    <span class="info-value">${mockData.ruleBasedDetection.details}</span>
+                </div>
+            ` : ''}
+            <div style="margin-top: 10px;">
+                <h4>룰기반 탐지 패턴 리스트:</h4>
+                <ul class="pattern-list">
+                    <li class="${mockData.ruleBasedDetection.patterns.respawnHack ? 'pattern-detected' : 'pattern-clean'}">
+                        리스폰 핵 - ${mockData.ruleBasedDetection.patterns.respawnHack ? t.patternDetected : t.patternNotDetected}
+                    </li>
+                    <li class="${mockData.ruleBasedDetection.patterns.timeEnergyHack ? 'pattern-detected' : 'pattern-clean'}">
+                        타임에너지 핵 - ${mockData.ruleBasedDetection.patterns.timeEnergyHack ? t.patternDetected : t.patternNotDetected}
+                    </li>
+                    <li class="${mockData.ruleBasedDetection.patterns.cooldownIgnoreHack ? 'pattern-detected' : 'pattern-clean'}">
+                        쿨타임 무시 핵 - ${mockData.ruleBasedDetection.patterns.cooldownIgnoreHack ? t.patternDetected : t.patternNotDetected}
+                    </li>
+                    <li class="${mockData.ruleBasedDetection.patterns.rangeHack ? 'pattern-detected' : 'pattern-clean'}">
+                        사거리 핵 - ${mockData.ruleBasedDetection.patterns.rangeHack ? t.patternDetected : t.patternNotDetected}
+                    </li>
+                    <li class="${mockData.ruleBasedDetection.patterns.movementHack ? 'pattern-detected' : 'pattern-clean'}">
+                        이동 핵 - ${mockData.ruleBasedDetection.patterns.movementHack ? t.patternDetected : t.patternNotDetected}
+                    </li>
+                    <li class="${mockData.ruleBasedDetection.patterns.installHack ? 'pattern-detected' : 'pattern-clean'}">
+                        설치 핵 - ${mockData.ruleBasedDetection.patterns.installHack ? t.patternDetected : t.patternNotDetected}
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 3.5 유저 신고 내역 -->
+        <div class="subsection">
+            <h3>3.5 ${t.userReports}</h3>
+            <div class="info-row">
+                <span class="info-label">${t.userReports}:</span>
+                <span class="info-value ${mockData.userReports.detected ? 'pattern-detected' : 'pattern-clean'}">
+                    ${mockData.userReports.detected ? t.detectionStatusYes : t.detectionStatusNo}
+                </span>
+            </div>
+            ${mockData.userReports.detected && mockData.userReports.reports.length > 0 ? `
+                <div style="margin-top: 10px;">
+                    <h4>${t.details}:</h4>
+                    <div style="margin-bottom: 10px; color: #8a8fa5; font-size: 14px;">
+                        신고 항목: ${[...new Set(mockData.userReports.reports.map(r => r.reason))].join(', ')}
+                    </div>
+                    <table>
+                        <tr><th>${t.reporter}</th><th>${t.reason}</th><th>${t.reasonIndex}</th><th>${t.date}</th><th>${t.time}</th></tr>
+                        ${mockData.userReports.reports.map(report => `
+                            <tr>
+                                <td>${report.reporter}</td>
+                                <td>${report.reason}</td>
+                                <td>${report.reasonIndex}번</td>
+                                <td>${report.date}</td>
+                                <td>${report.time}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            ` : ''}
+        </div>
     </div>
 </body>
 <script>

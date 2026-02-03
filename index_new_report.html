@@ -790,79 +790,44 @@
                 <h3>통계</h3>
                 
                 <div class="stat-group">
-                    <div class="stat-group-title">제목</div>
-                    <div class="stat-item">
-                        <span class="stat-label">게임 이름:</span>
-                        <span class="stat-value" id="game-name">Timetakers</span>
-                    </div>
-                </div>
-
-                <div class="stat-group">
-                    <div class="stat-group-title">게임</div>
+                    <div class="stat-group-title">매치 참여 정보</div>
                     <div class="stat-item">
                         <span class="stat-label">매치 ID:</span>
                         <span class="stat-value" id="match-id">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">시작 시간:</span>
-                        <span class="stat-value" id="start-time">-</span>
+                        <span class="stat-label">게임 타입:</span>
+                        <span class="stat-value" id="game-type">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">길이:</span>
-                        <span class="stat-value" id="game-length">-</span>
+                        <span class="stat-label">팀 타입:</span>
+                        <span class="stat-value" id="team-type">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">플레이어:</span>
-                        <span class="stat-value" id="total-players">-</span>
-                    </div>
-                    <div class="stat-item" style="display: none;">
-                        <span class="stat-label">Server:</span>
-                        <span class="stat-value" id="server-info">-</span>
-                    </div>
-                    <div class="stat-item" style="display: none;">
-                        <span class="stat-label">Game Mode:</span>
-                        <span class="stat-value" id="game-mode">-</span>
-                    </div>
-                </div>
-
-                <div class="stat-group">
-                    <div class="stat-group-title">매치</div>
-                    <div class="stat-item">
-                        <span class="stat-label">매치 시작 시간:</span>
-                        <span class="stat-value" id="match-start-time">-</span>
+                        <span class="stat-label">팀 개수:</span>
+                        <span class="stat-value" id="team-count">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">매치 길이:</span>
-                        <span class="stat-value" id="match-length">-</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">맵 이름:</span>
+                        <span class="stat-label">맵:</span>
                         <span class="stat-value" id="map-name">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">총 이벤트:</span>
-                        <span class="stat-value" id="total-events">-</span>
+                        <span class="stat-label">게임 시작 시간:</span>
+                        <span class="stat-value" id="game-start-time">-</span>
                     </div>
-                    <div class="stat-item" style="display: none;">
-                        <span class="stat-label">Match Mode:</span>
-                        <span class="stat-value" id="match-mode">-</span>
+                    <div class="stat-item">
+                        <span class="stat-label">게임 종료 시간:</span>
+                        <span class="stat-value" id="game-end-time">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">참여 플레이어 수:</span>
+                        <span class="stat-value" id="total-players">-</span>
                     </div>
                 </div>
 
                 <div class="stat-group">
-                    <div class="stat-group-title">플레이어 (K/D 비율)</div>
-                    <div style="font-size: 10px; color: #6a6f85; margin-bottom: 8px; font-style: italic;">
-                        K/D: 킬 / 데스 - 클릭하여 필터링
-                    </div>
+                    <div class="stat-group-title">플레이어ID, (팀번호), K/D/A 킬 / 데스 / 어시스트</div>
                     <div id="player-list" style="max-height: calc(100vh - 650px); overflow-y: auto; overflow-x: hidden; margin-bottom: 20px;"></div>
-                </div>
-
-                <div id="map-info">
-                    <div id="map-info-title">Map Bounds</div>
-                    <div id="map-bounds">Calculating...</div>
-                    <div id="map-info-text" style="margin-top: 10px; padding: 10px; background: #1a1f2e; border-radius: 4px; font-size: 11px; color: #8a8fa5;">
-                        <div id="map-note-text" style="margin-bottom: 5px; color: #4a90e2;">참고: 현재는 플레이어 위치 기반 경계만 표시됩니다.</div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1224,6 +1189,12 @@
                 if (container) {
                     container.style.display = 'flex';
                     container.style.visibility = 'visible';
+                    // 강제로 레이아웃 재계산 (오류 방지)
+                    try {
+                        void container.offsetHeight;
+                    } catch (e) {
+                        // 레이아웃 재계산 오류 무시
+                    }
                     
                     // 하단 패널 다시 표시
                     if (bottomPanel) {
@@ -1236,6 +1207,17 @@
                     if (canvasContainer) {
                         canvasContainer.style.display = 'block';
                         canvasContainer.style.visibility = 'visible';
+                    }
+                    
+                    // 화면을 맨 위로 스크롤
+                    try {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        if (container && typeof container.scrollTop !== 'undefined') {
+                            container.scrollTop = 0;
+                        }
+                    } catch (e) {
+                        // 스크롤 오류 무시
+                        console.warn('Scroll error:', e);
                     }
                     
                     // 데이터가 없을 때 안내 메시지 표시
@@ -1422,9 +1404,41 @@ Three.js · PapaParse · Pure JavaScript`
                 html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
                 html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
                 
-                // 리스트
-                html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
-                html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+                // 리스트 처리 - 더 안정적인 방법
+                const lines = html.split('\n');
+                let inList = false;
+                let result = [];
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const trimmed = line.trim();
+                    
+                    if (trimmed.startsWith('- ')) {
+                        // 리스트 항목
+                        if (!inList) {
+                            result.push('<ul>');
+                            inList = true;
+                        }
+                        result.push('<li>' + trimmed.substring(2).trim() + '</li>');
+                    } else {
+                        // 리스트 종료
+                        if (inList) {
+                            result.push('</ul>');
+                            inList = false;
+                        }
+                        // 빈 줄이 아니면 추가
+                        if (trimmed || i === 0 || i === lines.length - 1) {
+                            result.push(line);
+                        }
+                    }
+                }
+                
+                // 마지막에 열린 리스트 닫기
+                if (inList) {
+                    result.push('</ul>');
+                }
+                
+                html = result.join('\n');
                 
                 // 테이블 (간단한 처리)
                 html = html.replace(/\|(.+)\|/g, (match) => {
@@ -2112,16 +2126,6 @@ Three.js · PapaParse · Pure JavaScript`
                     }
                     
                     // Map Bounds 텍스트 업데이트
-                    const mapBoundsTitle = document.getElementById('map-info-title');
-                    if (mapBoundsTitle) {
-                        mapBoundsTitle.textContent = t.mapBounds;
-                    }
-                    
-                    const mapBoundsText = document.getElementById('map-bounds');
-                    if (mapBoundsText && mapBoundsText.textContent.includes('계산 중')) {
-                        mapBoundsText.textContent = t.calculating;
-                    }
-                    
                     // 이벤트 피커 업데이트
                     const killSelect = document.getElementById('kill-select');
                     if (killSelect && killSelect.options[0]) {
@@ -4503,6 +4507,27 @@ Three.js · PapaParse · Pure JavaScript`
                 <span class="info-value">${mockData.teamType}</span>
             </div>
             <div class="info-row">
+                <span class="info-label">${this.language === 'ko' ? '팀 개수' : 'Team Count'}:</span>
+                <span class="info-value">${(() => {
+                    const playerCount = this.data && this.data.metadata && this.data.metadata.players ? this.data.metadata.players.length : 0;
+                    let teamCount = '-';
+                    if (playerCount > 0 && mockData.teamType) {
+                        if (mockData.teamType === '솔로') {
+                            teamCount = playerCount + (this.language === 'ko' ? '팀' : ' teams');
+                        } else if (mockData.teamType === '듀오') {
+                            teamCount = Math.ceil(playerCount / 2) + (this.language === 'ko' ? '팀' : ' teams');
+                        } else if (mockData.teamType === '트리오') {
+                            teamCount = Math.ceil(playerCount / 3) + (this.language === 'ko' ? '팀' : ' teams');
+                        } else if (mockData.teamType === '스쿼드') {
+                            teamCount = Math.ceil(playerCount / 4) + (this.language === 'ko' ? '팀' : ' teams');
+                        } else {
+                            teamCount = Math.ceil(playerCount / 4) + (this.language === 'ko' ? '팀' : ' teams');
+                        }
+                    }
+                    return teamCount;
+                })()}</span>
+            </div>
+            <div class="info-row">
                 <span class="info-label">${t.map}:</span>
                 <span class="info-value">${mapName}</span>
             </div>
@@ -4513,6 +4538,10 @@ Three.js · PapaParse · Pure JavaScript`
             <div class="info-row">
                 <span class="info-label">${t.gameEndTime}:</span>
                 <span class="info-value">${this.formatTime(gameEndTime)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">${this.language === 'ko' ? '참여 플레이어 수' : 'Total Players'}:</span>
+                <span class="info-value">${this.data && this.data.metadata && this.data.metadata.players ? this.data.metadata.players.length + (this.language === 'ko' ? '명' : ' players') : '-'}</span>
             </div>
         </div>
         
@@ -5278,11 +5307,7 @@ Three.js · PapaParse · Pure JavaScript`
                     this.scene.add(sprite);
                 });
                 
-                // UI 업데이트 (X, Y, Z 범위만 표시)
-                document.getElementById('map-bounds').textContent = 
-                    `X: ${bounds.minX.toFixed(0)} ~ ${bounds.maxX.toFixed(0)}\n` +
-                    `Y: ${bounds.minY.toFixed(0)} ~ ${bounds.maxY.toFixed(0)}\n` +
-                    `Z: ${bounds.minZ.toFixed(0)} ~ ${bounds.maxZ.toFixed(0)}`;
+                // Map Bounds UI 제거됨 (참여 플레이어 수로 대체)
             }
 
             setupScene() {
@@ -5777,8 +5802,6 @@ Three.js · PapaParse · Pure JavaScript`
                 if (!this.data) return;
 
                 const m = this.data.metadata;
-                document.getElementById('total-players').textContent = m.players.length;
-                document.getElementById('total-events').textContent = m.total_events;
                 
                 // 맵 이름 업데이트
                 const mapName = m.mapName || this.detectedMapName || 'Unknown';
@@ -5795,13 +5818,8 @@ Three.js · PapaParse · Pure JavaScript`
                     detectedMapNameElement.textContent = `${mapName} ${source}`;
                 }
                 
-                const duration = m.time_range.max - m.time_range.min;
-                const mins = Math.floor(duration / 60);
-                const secs = Math.floor(duration % 60);
-                document.getElementById('game-length').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-                document.getElementById('match-length').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-                
-                // Match ID 표시
+                // 매치 참여 정보 업데이트
+                // Match ID
                 const matchIdElement = document.getElementById('match-id');
                 if (matchIdElement && m.matchInfo && m.matchInfo.match_id !== null) {
                     matchIdElement.textContent = m.matchInfo.match_id;
@@ -5809,34 +5827,113 @@ Three.js · PapaParse · Pure JavaScript`
                     matchIdElement.textContent = '-';
                 }
                 
-                // 시작 시간 (timestamp에서 날짜 추출)
-                const startDate = new Date();
-                startDate.setTime(m.time_range.min * 1000);
-                const startTimeElement = document.getElementById('start-time');
-                if (startTimeElement) {
-                    startTimeElement.textContent = startDate.toLocaleDateString('ko-KR') + ' ' + startDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                // 게임 타입 (실제 데이터 우선, 없으면 Mock 데이터)
+                const gameTypeElement = document.getElementById('game-type');
+                if (gameTypeElement) {
+                    // 실제 데이터가 있으면 사용, 없으면 Mock 데이터 생성
+                    const gameType = m.matchInfo?.game_type || (() => {
+                        const mockData = this.generateMockData ? this.generateMockData('', {}) : null;
+                        return mockData && mockData.gameType ? mockData.gameType : '-';
+                    })();
+                    gameTypeElement.textContent = gameType;
                 }
                 
-                // Match Start Time
-                const matchStartTimeElement = document.getElementById('match-start-time');
-                if (matchStartTimeElement) {
-                    matchStartTimeElement.textContent = startDate.toLocaleDateString('ko-KR') + ' ' + startDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                // 팀 타입 (실제 데이터 우선, 없으면 Mock 데이터)
+                const teamTypeElement = document.getElementById('team-type');
+                let teamType = '-';
+                if (teamTypeElement) {
+                    teamType = m.matchInfo?.team_type || (() => {
+                        const mockData = this.generateMockData ? this.generateMockData('', {}) : null;
+                        return mockData && mockData.teamType ? mockData.teamType : '-';
+                    })();
+                    teamTypeElement.textContent = teamType;
+                }
+                
+                // 팀 개수 계산 (팀 타입에 따라)
+                const teamCountElement = document.getElementById('team-count');
+                if (teamCountElement && m.players) {
+                    const playerCount = m.players.length;
+                    let teamCount = '-';
+                    
+                    if (teamType === '솔로') {
+                        teamCount = playerCount + '팀';
+                    } else if (teamType === '듀오') {
+                        teamCount = Math.ceil(playerCount / 2) + '팀';
+                    } else if (teamType === '트리오') {
+                        teamCount = Math.ceil(playerCount / 3) + '팀';
+                    } else if (teamType === '스쿼드') {
+                        teamCount = Math.ceil(playerCount / 4) + '팀';
+                    } else if (teamType !== '-') {
+                        // 알 수 없는 팀 타입이면 기본값으로 계산 (스쿼드 기준)
+                        teamCount = Math.ceil(playerCount / 4) + '팀';
+                    }
+                    
+                    teamCountElement.textContent = teamCount;
+                } else if (teamCountElement) {
+                    teamCountElement.textContent = '-';
+                }
+                
+                // 게임 시작 시간
+                const gameStartTimeElement = document.getElementById('game-start-time');
+                if (gameStartTimeElement) {
+                    gameStartTimeElement.textContent = this.formatTime(m.time_range.min);
+                }
+                
+                // 게임 종료 시간
+                const gameEndTimeElement = document.getElementById('game-end-time');
+                if (gameEndTimeElement) {
+                    gameEndTimeElement.textContent = this.formatTime(m.time_range.max);
+                }
+                
+                // 참여 플레이어 수
+                const totalPlayersElement = document.getElementById('total-players');
+                if (totalPlayersElement && m.players) {
+                    totalPlayersElement.textContent = m.players.length + '명';
+                } else if (totalPlayersElement) {
+                    totalPlayersElement.textContent = '-';
                 }
 
+                // 플레이어 리스트 (K/D/A)
                 const playerList = document.getElementById('player-list');
                 playerList.innerHTML = '';
                 playerList.style.display = 'grid';
                 playerList.style.gridTemplateColumns = 'repeat(2, 1fr)';
                 playerList.style.gap = '4px';
                 
-                m.players.forEach(name => {
-                    const stats = m.playerStats[name] || { kills: 0, deaths: 0, team: '' };
+                m.players.forEach((name, index) => {
+                    const stats = m.playerStats[name] || { kills: 0, deaths: 0, assists: 0, team: '' };
+                    const assists = stats.assists || 0;
+                    
+                    // 목업: 플레이어 이름 기반으로 일관된 팀 번호 생성 (1~팀개수)
+                    const playerCount = m.players.length;
+                    const teamType = m.matchInfo?.team_type || (() => {
+                        const mockData = this.generateMockData ? this.generateMockData('', {}) : null;
+                        return mockData && mockData.teamType ? mockData.teamType : '스쿼드';
+                    })();
+                    
+                    let maxTeams = 1;
+                    if (teamType === '솔로') {
+                        maxTeams = playerCount;
+                    } else if (teamType === '듀오') {
+                        maxTeams = Math.ceil(playerCount / 2);
+                    } else if (teamType === '트리오') {
+                        maxTeams = Math.ceil(playerCount / 3);
+                    } else if (teamType === '스쿼드') {
+                        maxTeams = Math.ceil(playerCount / 4);
+                    }
+                    
+                    // 플레이어 이름의 해시값을 사용하여 일관된 팀 번호 생성
+                    let hash = 0;
+                    for (let i = 0; i < name.length; i++) {
+                        hash = ((hash << 5) - hash) + name.charCodeAt(i);
+                        hash = hash & hash; // Convert to 32bit integer
+                    }
+                    const teamNumber = (Math.abs(hash) % maxTeams) + 1;
+                    
                     const item = document.createElement('div');
                     item.className = `player-item ${stats.team.toLowerCase()}`;
-                    const kd = stats.deaths > 0 ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2);
                     item.innerHTML = `
-                        <span>${name}</span>
-                        <span class="player-kd">${stats.kills}/${stats.deaths} (${kd})</span>
+                        <span>${name}, (${teamNumber}), ${stats.kills}/${stats.deaths}/${assists}</span>
                     `;
                     item.style.cursor = 'pointer';
                     item.style.fontSize = '11px';
